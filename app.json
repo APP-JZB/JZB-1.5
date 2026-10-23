@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Hito ZB Arica",
+    "slug": "hito-zb-arica",
+    "version": "1.32.10",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "cl.zbarica.hito"
+    },
+    "android": {
+      "package": "cl.zbarica.hito",
+      "adaptiveIcon": {
+        "backgroundColor": "#1F5D4C",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro",
+      "name": "Hito ZB Arica",
+      "shortName": "Hito",
+      "themeColor": "#C8102E",
+      "backgroundColor": "#F3F4F0",
+      "display": "standalone"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#C8102E"
+        }
+      ],
+      "expo-sharing",
+      "expo-background-task",
+      "expo-asset",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Hito usa el micrófono para que dictes tareas al asistente.",
+          "speechRecognitionPermission": "Hito convierte tu voz en texto para crear tareas.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "baseUrl": "/hito-zb-arica-web"
+    }
+  }
+}
