@@ -1,4 +1,4 @@
-# Hito ZB Arica
+# Hito JZB
 
 App de tareas, plazos y avisos de la Zona de Bienestar "Arica".
 
