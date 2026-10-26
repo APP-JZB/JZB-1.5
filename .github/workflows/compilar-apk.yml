@@ -43,6 +43,24 @@ jobs:
           fi
           echo "APP_DIR=$APP_DIR" >> "$GITHUB_ENV"
 
+      - name: Aplicar nombre JZB a la fuente compilada
+        run: |
+          cp app.json "$APP_DIR/app.json"
+          cp App.js "$APP_DIR/App.js"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          root = Path(os.environ["APP_DIR"])
+          candidates = list(root.glob("src/screens.js"))
+          for p in candidates:
+              s = p.read_text(encoding="utf-8")
+              s = s.replace("ZONA DE BIENESTAR “ARICA”", "JEFATURA DE ZONAS DE BIENESTAR")
+              s = s.replace("ZONA DE BIENESTAR \"ARICA\"", "JEFATURA DE ZONAS DE BIENESTAR")
+              s = s.replace(">Hito<", ">JZB<")
+              s = s.replace("Hito", "JZB")
+              p.write_text(s, encoding="utf-8")
+          PY
+
       - name: Instalar dependencias
         working-directory: .
         run: |
@@ -63,6 +81,6 @@ jobs:
       - name: Publicar APK como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: Hito-JZB-apk
+          name: JZB-apk
           path: source/**/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
