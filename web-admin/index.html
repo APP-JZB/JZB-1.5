@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#173f35">
+<title>JZB | Administración</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#17211e;background:#f2f5f2}
+*{box-sizing:border-box}body{margin:0}.header{background:#173f35;color:#fff;padding:22px;display:flex;gap:12px;align-items:center}.mark{border:1px solid #b8d0c2;border-radius:10px;padding:12px;font-weight:800}.brand{font-weight:800;letter-spacing:.06em}.muted{color:#627169;line-height:1.5}.wrap{max-width:760px;margin:44px auto;padding:0 18px}.card{background:#fff;border:1px solid #dce5de;border-radius:18px;padding:26px;box-shadow:0 12px 34px #163c2d0c}.login{max-width:450px;margin:0 auto}h1{font-size:25px;margin:0 0 8px}.field{display:block;font-weight:700;font-size:13px;margin:18px 0 7px}input{width:100%;padding:13px;border:1px solid #cbd6ce;border-radius:9px;font:inherit}button{padding:13px 16px;border:0;border-radius:9px;font:inherit;font-weight:700;cursor:pointer}.primary{width:100%;background:#1d5745;color:#fff;margin-top:20px}.secondary{background:#e8efea;color:#244b3b}.message{font-size:13px;white-space:pre-wrap;color:#8b2e2e}.hidden{display:none}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.pill{background:#e4f1e9;color:#20533e;padding:6px 10px;border-radius:99px;font-size:12px;font-weight:800}.tile{border:1px solid #e0e7e1;border-radius:12px;padding:18px;margin-top:18px}footer{text-align:center;color:#6d7972;font-size:12px;padding:24px}
+</style>
+</head>
+<body>
+<header class="header"><div class="mark">JZB</div><div><div class="brand">JEFATURA DE ZONAS DE BIENESTAR</div><div style="font-size:12px;color:#d1e0d7">Portal de administración institucional</div></div></header>
+<main class="wrap">
+<section id="login" class="card login">
+<h1>Acceso administrador</h1><p class="muted">Ingresa con tu cuenta autorizada. Solo los perfiles con rol administrador podrán acceder al panel.</p>
+<form id="loginForm">
+<label class="field" for="email">Correo electrónico</label><input id="email" type="email" autocomplete="username" required value="administradorjzb@gmail.com">
+<label class="field" for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="submit" class="primary" type="submit">Iniciar sesión</button><p id="loginMessage" class="message" role="alert"></p>
+</form></section>
+<section id="panel" class="card hidden">
+<div class="row"><div><h1>Panel de administración</h1><p id="welcome" class="muted"></p></div><span class="pill">ADMIN</span></div>
+<div class="tile"><strong>Acceso administrativo verificado</strong><p class="muted">La autenticación y el rol se validaron con Supabase. Los módulos se incorporarán progresivamente.</p></div>
+<div class="tile"><strong>Próxima etapa</strong><p class="muted">Agregar recuperación de acceso, usuarios y módulos de gestión. En esta etapa no se importan nóminas ni datos operativos antiguos.</p></div>
+<button id="logout" class="secondary" style="margin-top:20px">Cerrar sesión</button><p id="panelMessage" class="message"></p>
+</section>
+</main><footer>JZB · Acceso restringido · Mantén tus credenciales privadas</footer>
+<script>
+const API='https://zuqvoutmydvwrykoklgq.supabase.co';
+const KEY='sb_publishable_NLo8kL6FOr1hVRoeUu7aXw_UsldHY3u';
+let token=null;
+const $=id=>document.getElementById(id);
+async function api(path,options={}) {
+ const headers={'apikey':KEY,'Content-Type':'application/json',...(options.headers||{})};
+ if(token) headers.Authorization='Bearer '+token;
+ const res=await fetch(API+path,{...options,headers});
+ const body=await res.json().catch(()=>({}));
+ if(!res.ok) throw new Error(body.msg||body.message||body.error_description||body.error||'Error de conexión ('+res.status+')');
+ return body;
+}
+async function enter(accessToken,user) {
+ token=accessToken;
+ const rows=await api('/rest/v1/profiles?select=email,display_name,role&id=eq.'+encodeURIComponent(user.id));
+ const profile=rows[0];
+ if(!profile||profile.role!=='admin') {token=null;throw new Error('La cuenta inició sesión, pero no tiene rol admin en public.profiles.');}
+ $('login').classList.add('hidden');$('panel').classList.remove('hidden');
+ $('welcome').textContent='Sesión iniciada como '+(profile.display_name||profile.email||user.email||'administrador')+'.';
+}
+$('loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();$('loginMessage').textContent='';$('submit').disabled=true;$('submit').textContent='Verificando…';
+ try {
+  const result=await api('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
+  await enter(result.access_token,result.user);
+  sessionStorage.setItem('jzb_session',JSON.stringify({access_token:result.access_token,user:result.user}));
+ } catch(err){$('loginMessage').textContent=err.message||'No fue posible iniciar sesión.';}
+ finally{$('submit').disabled=false;$('submit').textContent='Iniciar sesión';}
+});
+$('logout').addEventListener('click',async()=>{
+ try{await api('/auth/v1/logout',{method:'POST'});}catch(e){}
+ token=null;sessionStorage.removeItem('jzb_session');$('password').value='';$('panel').classList.add('hidden');$('login').classList.remove('hidden');$('loginMessage').textContent='';
+});
+(async()=>{try{const saved=JSON.parse(sessionStorage.getItem('jzb_session')||'null');if(saved?.access_token){await enter(saved.access_token,saved.user);}}catch(e){token=null;sessionStorage.removeItem('jzb_session');}})();
+</script>
+</body></html>
