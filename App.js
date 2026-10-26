@@ -26,7 +26,7 @@ class Boundary extends React.Component {
     if (!this.state.err) return this.props.children;
     return (
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 60, gap: 14 }}>
-        <Text style={{ fontSize: 20, fontWeight: "800", color: C.ink }}>Algo falló en Hito</Text>
+        <Text style={{ fontSize: 20, fontWeight: "800", color: C.ink }}>Algo falló en JZB</Text>
         <Text selectable style={{ color: C.ink }}>{String(this.state.err && (this.state.err.stack || this.state.err.message || this.state.err)).slice(0, 1500)}</Text>
         <Text style={{ color: C.muted }}>Toma una captura de esta pantalla y envíasela a Claude.</Text>
         <Btn title="Reintentar" onPress={() => this.setState({ err: null })} />
@@ -54,7 +54,7 @@ export default function App() {
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={["top", "bottom"]}>
         {lastErr ? (
           <Pressable onPress={() => { AsyncStorage.removeItem("hito-last-error"); setLastErr(""); }} style={{ backgroundColor: "#FBE3E3", padding: 12 }}>
-            <Text selectable style={{ color: "#7A1C1C", fontSize: 12 }}>La última vez Hito se cerró por este error (toma captura y envíasela a Claude; toca para ocultar):{"\n"}{lastErr.slice(0, 600)}</Text>
+            <Text selectable style={{ color: "#7A1C1C", fontSize: 12 }}>La última vez JZB se cerró por este error (toma captura y envíasela a Claude; toca para ocultar):{"\n"}{lastErr.slice(0, 600)}</Text>
           </Pressable>) : null}
         <Boundary>
           {session === undefined ? <ActivityIndicator style={{ marginTop: 120 }} color={C.accent} /> : session ? <Main session={session} /> : observerToken ? <ObserverSession token={observerToken} onExit={observerExit} /> : observerLogin ? <ObserverLogin onLogin={observerEnter} onBack={() => setObserverLogin(false)} /> : <View style={{flex:1}}><Login /><View style={{padding:16}}><Btn title="Ingresar como observador" onPress={() => setObserverLogin(true)} /></View></View>}
@@ -99,7 +99,7 @@ function Main({ session }) {
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12, color: C.muted, letterSpacing: 0.8 }}>ZB ARICA · {fmtDay(Date.now()).toUpperCase()}</Text>
+          <Text style={{ fontSize: 12, color: C.muted, letterSpacing: 0.8 }}>JZB · {fmtDay(Date.now()).toUpperCase()}</Text>
           <Text style={{ fontSize: 26, fontWeight: "800", color: C.ink }}>{titles[cur]}</Text>
         </View>
         <Pressable onPress={() => supabase.auth.signOut()} style={{ padding: 8 }}><Text style={{ color: C.muted, fontSize: 13 }}>Salir</Text></Pressable>
@@ -114,7 +114,7 @@ function Main({ session }) {
               const ok = await activarAvisos(true); setAvisos(!!ok);
               if (!ok) return Alert.alert("Avisos", "No se pudo activar. Revisa que la app tenga permiso de notificaciones en los ajustes del teléfono.");
               reload();
-              if (Platform.OS === "android") Alert.alert("Un paso más para que lleguen con la app cerrada", "En Xiaomi, Huawei, Samsung y otros: Ajustes → Aplicaciones → Hito ZB Arica → Batería → “Sin restricciones” (o desactivar “Optimizar batería”).", [{ text: "Abrir ajustes", onPress: () => Linking.openSettings() }, { text: "Listo", style: "cancel" }]);
+              if (Platform.OS === "android") Alert.alert("Un paso más para que lleguen con la app cerrada", "En Xiaomi, Huawei, Samsung y otros: Ajustes → Aplicaciones → JZB → Batería → “Sin restricciones” (o desactivar “Optimizar batería”).", [{ text: "Abrir ajustes", onPress: () => Linking.openSettings() }, { text: "Listo", style: "cancel" }]);
             }} />
           </View>) : null}
         {!isAdmin && ["hoy", "cal", "equipo", "control", "notas", "gantt"].includes(cur) ? <Note kind="info" text={sup ? "Modo consulta: ves toda la Zona. Solo el Comandante puede modificar." : "Ves la información de tu organización (" + areaNom + "). Solo el Comandante puede modificar."} /> : null}
