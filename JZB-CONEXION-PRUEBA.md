@@ -1,0 +1,1 @@
+Prueba temporal de escritura del conector de GitHub realizada el 26 de octubre de 2026. Este archivo se eliminará tras comprobar el acceso.
