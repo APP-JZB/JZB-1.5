@@ -1,0 +1,68 @@
+
+name: Compilar APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Extraer código fuente
+        run: |
+          mkdir -p source
+          unzip -q hito-zb-arica-main.zip -d source
+          APP_DIR=$(find source -name package.json \
+            -not -path '*/node_modules/*' \
+            -print -quit | xargs dirname)
+          if [ -z "$APP_DIR" ] || [ ! -f "$APP_DIR/package-lock.json" ]; then
+            echo "No se encontró el proyecto Expo completo."
+            exit 1
+          fi
+          echo "APP_DIR=$APP_DIR" >> "$GITHUB_ENV"
+
+      - name: Instalar dependencias
+        working-directory: .
+        run: |
+          cd "$APP_DIR"
+          npm ci
+
+      - name: Generar proyecto Android
+        run: |
+          cd "$APP_DIR"
+          npx expo prebuild --platform android --no-install
+
+      - name: Compilar APK
+        run: |
+          cd "$APP_DIR/android"
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Publicar APK como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hito-JZB-apk
+          path: source/**/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
