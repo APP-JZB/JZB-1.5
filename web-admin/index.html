@@ -19,7 +19,12 @@
 <label class="field" for="email">Correo electrónico</label><input id="email" type="email" autocomplete="username" required value="administradorjzb@gmail.com">
 <label class="field" for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password" required>
 <button id="submit" class="primary" type="submit">Iniciar sesión</button><p id="loginMessage" class="message" role="alert"></p>
-</form></section>
+</form><button id="forgot" class="secondary" type="button">¿Olvidaste tu contraseña?</button></section>
+<section id="reset" class="card login hidden">
+<h1>Crear nueva contraseña</h1><p class="muted">Elige una contraseña segura y única para tu cuenta.</p>
+<form id="resetForm"><label class="field" for="newPassword">Nueva contraseña</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+<label class="field" for="confirmPassword">Confirmar contraseña</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
+<button id="resetSubmit" class="primary" type="submit">Guardar contraseña</button><p id="resetMessage" class="message" role="alert"></p></form></section>
 <section id="panel" class="card hidden">
 <div class="row"><div><h1>Panel de administración</h1><p id="welcome" class="muted"></p></div><span class="pill">ADMIN</span></div>
 <div class="tile"><strong>Acceso administrativo verificado</strong><p class="muted">La autenticación y el rol se validaron con Supabase. Los módulos se incorporarán progresivamente.</p></div>
@@ -57,10 +62,42 @@ $('loginForm').addEventListener('submit',async e=>{
  } catch(err){$('loginMessage').textContent=err.message||'No fue posible iniciar sesión.';}
  finally{$('submit').disabled=false;$('submit').textContent='Iniciar sesión';}
 });
+$('forgot').addEventListener('click',async()=>{
+ const email=$('email').value.trim();
+ if(!email || !$('email').validity.valid){$('loginMessage').textContent='Ingresa un correo válido para recuperar tu acceso.';return;}
+ $('forgot').disabled=true;$('loginMessage').textContent='Enviando solicitud…';
+ try {
+  const redirect=location.origin+location.pathname;
+  await api('/auth/v1/recover?redirect_to='+encodeURIComponent(redirect),{method:'POST',body:JSON.stringify({email})});
+  $('loginMessage').textContent='Si la cuenta existe, recibirás un correo con las instrucciones. Utiliza el enlace más reciente una sola vez.';
+ } catch(e){$('loginMessage').textContent='No se pudo enviar la solicitud. Inténtalo nuevamente más tarde.';}
+ finally{$('forgot').disabled=false;}
+});
+$('resetForm').addEventListener('submit',async e=>{
+ e.preventDefault();$('resetMessage').textContent='';
+ if($('newPassword').value!==$('confirmPassword').value){$('resetMessage').textContent='Las contraseñas no coinciden.';return;}
+ $('resetSubmit').disabled=true;
+ try {
+  await api('/auth/v1/user',{method:'PUT',body:JSON.stringify({password:$('newPassword').value})});
+  try{await api('/auth/v1/logout',{method:'POST'});}catch(e){}
+  token=null;$('newPassword').value='';$('confirmPassword').value='';$('reset').classList.add('hidden');$('login').classList.remove('hidden');
+  $('loginMessage').textContent='Contraseña actualizada. Ingresa con tu nueva contraseña.';
+ }catch(e){$('resetMessage').textContent='No fue posible cambiar la contraseña. Solicita un enlace nuevo e inténtalo otra vez.';}
+ finally{$('resetSubmit').disabled=false;}
+});
 $('logout').addEventListener('click',async()=>{
  try{await api('/auth/v1/logout',{method:'POST'});}catch(e){}
  token=null;sessionStorage.removeItem('jzb_session');$('password').value='';$('panel').classList.add('hidden');$('login').classList.remove('hidden');$('loginMessage').textContent='';
 });
-(async()=>{try{const saved=JSON.parse(sessionStorage.getItem('jzb_session')||'null');if(saved?.access_token){await enter(saved.access_token,saved.user);}}catch(e){token=null;sessionStorage.removeItem('jzb_session');}})();
+(async()=>{
+ const hash=new URLSearchParams(location.hash.slice(1));
+ if(hash.has('access_token')||hash.has('error')){
+  history.replaceState(null,'',location.pathname+location.search);
+  sessionStorage.removeItem('jzb_session');
+  if(hash.get('type')==='recovery' && hash.get('access_token')){token=hash.get('access_token');$('login').classList.add('hidden');$('reset').classList.remove('hidden');return;}
+  $('loginMessage').textContent='El enlace es inválido o venció. Solicita uno nuevo desde esta página.';return;
+ }
+ try{const saved=JSON.parse(sessionStorage.getItem('jzb_session')||'null');if(saved?.access_token){await enter(saved.access_token,saved.user);}}catch(e){token=null;sessionStorage.removeItem('jzb_session');}
+})();
 </script>
 </body></html>
