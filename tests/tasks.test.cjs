@@ -38,7 +38,7 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  assert.equal(elements.taskList.children.length,8,'every section has an entry point, including empty sections');
  assert.equal(elements.taskList.children[0].tag,'section');
  elements.taskList.children[0].children[0].children[2].onclick();assert.equal(openedSection,'Asistencial','create button exists in an empty section');
- const existingCard=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Logística')).children.find(child=>child.tag==='article');existingCard.children.at(-1).onclick();assert.equal(editedTask.id,'a','edit button opens the selected task');
+ const existingCard=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Logística')).children.find(child=>child.tag==='article');existingCard.children.find(child=>child.textContent==='Editar tarea').onclick();assert.equal(editedTask.id,'a','edit button opens the selected task');
  assert.match(elements.taskList.children[0].children[0].textContent,/Asistencial/);assert.match(elements.taskList.textContent,/<img src=x/,'title remains literal text');
  const assignedRows=rows.map(t=>({...t,assignee_text:'RESPONSABLE DE PRUEBA'}));
  await dashboard.load(async()=>assignedRows);
