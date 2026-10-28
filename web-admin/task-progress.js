@@ -2,7 +2,7 @@ window.JzbTaskProgress=(()=>{
  let api=null,profile={},active=null,requestId=0,assignedIds=[];
  const q=id=>document.getElementById(id),el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n;};
  function configure(request,p){api=request;profile=p;assignedIds=[];if(p.id)request('/rest/v1/jzb_responsibles?select=id&active=eq.true&profile_id=eq.'+encodeURIComponent(p.id)).then(rows=>{if(profile===p)assignedIds=rows.map(r=>r.id);}).catch(()=>{});}
- function canWrite(t){return t.status!=='finalizada'&&(['jefe','subjefe'].includes(profile.role)||(profile.role==='user'&&(profile.section===t.section||(t.responsible_ids||[]).some(id=>assignedIds.includes(id)))));}
+ function canWrite(t){return t.status!=='finalizada'&&(['admin','jefe','subjefe'].includes(profile.role)||(profile.role==='user'&&(profile.section===t.section||(t.responsible_ids||[]).some(id=>assignedIds.includes(id)))));}
  async function read(task,version){
   q('progressHistory').textContent='Cargando comentarios…';
   try{const rows=await api('/rest/v1/jzb_task_comments?select=actor_name,section,body,ready_for_review,created_at&task_id=eq.'+encodeURIComponent(task.id)+'&order=created_at.desc');if(version!==requestId)return;
