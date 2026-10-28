@@ -63,6 +63,12 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  elements.taskSection.value='Logística';elements.taskSection.onchange();assert.equal(elements.taskList.children.length,1);
  elements.taskSearch.value='no existe';elements.taskSearch.oninput();assert.match(elements.taskList.textContent,/No hay tareas/);
  elements.calendarNext.onclick();const day=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('12 de noviembre de 2026'));assert.ok(day);day.onclick();assert.match(elements.calendarDetail.textContent,/Tarea de prueba/,'calendar ignores section filter');
+ elements.calendarView.value='week';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,7,'weekly view shows seven days');
+ elements.calendarToday.onclick();assert.match(elements.calendarMonth.textContent,/26 de octubre de 2026/);assert.match(elements.calendarMonth.textContent,/1 de noviembre de 2026/,'week crosses month boundary');
+ elements.calendarNext.onclick();assert.match(elements.calendarMonth.textContent,/2 de noviembre de 2026/,'next advances a week');
+ elements.calendarToday.onclick();elements.calendarView.value='day';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,1,'daily view shows one day');assert.equal(elements.calendarWeek.hidden,true);
+ elements.calendarNext.onclick();assert.match(elements.calendarMonth.textContent,/29 de octubre de 2026/,'next advances one day');elements.calendarPrev.onclick();assert.match(elements.calendarMonth.textContent,/28 de octubre de 2026/);
+ elements.calendarView.value='month';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,42);assert.equal(elements.calendarWeek.hidden,false);
  dashboard.clear();assert.equal(elements.totalTasks.textContent,'0');assert.equal(elements.calendarTasksDialog.open,false,'logout closes task popup');assert.doesNotMatch(elements.taskList.textContent,/<img/,'logout clears loaded data');
  await dashboard.load(async()=>{throw new Error('expired');});assert.match(elements.taskLoadMessage.textContent,/No fue posible/);assert.equal(elements.totalTasks.textContent,'0');
  console.log('PASS: counts, filters, calendar, safe text, logout and error state');
