@@ -32,6 +32,8 @@ jobs:
         run: |
           mkdir -p dist
           cp -R web-admin/. dist/
+          base64 --decode web-admin/app-icon.png.base64 > dist/app-icon.png
+          rm dist/app-icon.png.base64
           touch dist/.nojekyll
 
       - name: Empaquetar portal
