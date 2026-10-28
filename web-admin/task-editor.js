@@ -3,10 +3,14 @@ window.JzbTaskEditor=(()=>{
  const allowed=/\.(pdf|docx?|xlsx?|pptx?|png|jpe?g|txt|csv)$/i;
  let api=null,refresh=null,canManage=false,canMarkComplete=false,current=null,draftId=null,busy=false,queue=[],previousFocus=null;
  const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
+ let directory=[],directoryReady=false,directoryRequest=0;
+ const selectedResponsibleIds=()=>Array.from(q('taskAssigneeOptions').children).filter(label=>label.children[0]?.checked).map(label=>label.children[0].value);
+ function renderResponsibleOptions(){q('taskAssigneeOptions').replaceChildren();for(const person of directory){const label=el('label',undefined,'responsible-option'),box=el('input');box.type='checkbox';box.value=person.id;box.checked=(current?.responsible_ids||[]).includes(person.id);box.disabled=!canMarkComplete||busy;label.append(box,el('span',person.rank+' '+person.full_name+' · '+person.position));q('taskAssigneeOptions').append(label);}}
+ async function loadDirectory(){const version=++directoryRequest;directoryReady=false;q('taskAssigneeMessage').textContent='Cargando perfiles…';try{const rows=await api('/rest/v1/jzb_responsibles?select=id,rank,full_name,position,section,active&active=eq.true&order=full_name.asc');if(version!==directoryRequest)return;directory=rows;directoryReady=true;renderResponsibleOptions();q('taskAssigneeMessage').textContent=canMarkComplete?'':'Solo el Jefe o Subjefe puede designar responsables.';}catch(e){if(version===directoryRequest)q('taskAssigneeMessage').textContent='No se pudieron cargar los perfiles. Cierra y vuelve a abrir para reintentar.';}}
  const pathEncode=p=>p.split('/').map(encodeURIComponent).join('/');
  const dateText=d=>d?new Intl.DateTimeFormat('es-CL',{dateStyle:'medium'}).format(new Date(d+'T12:00:00')):'Sin plazo';
- const payload=()=>({title:q('taskTitle').value.trim(),description:q('taskDescription').value.trim(),section:q('taskAssignedSection').value,assignee_text:q('taskResponsible').value.trim()||null,due_date:q('taskNoDeadline').checked?null:q('taskDueDate').value});
- function setBusy(value){busy=value;for(const id of ['taskSave','taskCancel','taskClose','taskTitle','taskDescription','taskAssignedSection','taskResponsible','taskNoDeadline','taskDueDate','taskFiles'])q(id).disabled=value;q('taskDueDate').disabled=value||q('taskNoDeadline').checked;}
+ const payload=()=>({title:q('taskTitle').value.trim(),description:q('taskDescription').value.trim(),section:q('taskAssignedSection').value,assignee_text:q('taskResponsible').value.trim()||null,due_date:q('taskNoDeadline').checked?null:q('taskDueDate').value,...(canMarkComplete&&directoryReady?{responsible_ids:selectedResponsibleIds()}: {})});
+ function setBusy(value){busy=value;for(const id of ['taskSave','taskCancel','taskClose','taskTitle','taskDescription','taskAssignedSection','taskResponsible','taskNoDeadline','taskDueDate','taskFiles'])q(id).disabled=value;q('taskDueDate').disabled=value||q('taskNoDeadline').checked;for(const label of q('taskAssigneeOptions').children)label.children[0].disabled=value||!canMarkComplete;}
  function showMessage(message){q('taskEditorMessage').textContent=message;}
  function updateDeadline(){q('taskDueDate').disabled=q('taskNoDeadline').checked;q('taskDueDate').required=!q('taskNoDeadline').checked;if(q('taskNoDeadline').checked)q('taskDueDate').value='';}
  function fileSelection(){
@@ -31,7 +35,7 @@ window.JzbTaskEditor=(()=>{
   q('taskFileSelection').replaceChildren();q('taskExistingFiles').replaceChildren();q('taskHistory').replaceChildren();showMessage('');setBusy(false);
   q('taskExistingFiles').textContent=task?'Cargando documentos…':'Todavía no hay documentos adjuntos.';
   q('taskHistory').textContent=task?'Cargando historial…':'El historial se generará al crear la tarea.';
-  q('taskEditor').showModal();q('taskTitle').focus();if(task)loadDetails(task.id);
+  renderResponsibleOptions();loadDirectory();q('taskEditor').showModal();q('taskTitle').focus();if(task)loadDetails(task.id);
  }
  async function loadDetails(taskId){
   const existing=q('taskExistingFiles'),history=q('taskHistory');
@@ -51,6 +55,7 @@ window.JzbTaskEditor=(()=>{
    const before=row.before_values,after=row.after_values;
    if(before&&before.section!==after.section)item.append(el('p','Sección: '+before.section+' → '+after.section));
    if(before&&before.due_date!==after.due_date)item.append(el('p','Plazo: '+dateText(before.due_date)+' → '+dateText(after.due_date)));
+   if(after.responsible_ids)item.append(el('p','Responsables designados: '+(after.responsible_ids.map(id=>{const person=directory.find(d=>d.id===id);return person?person.rank+' '+person.full_name:id;}).join(', ')||'Sin designar')));
    if(before&&before.status!==after.status){const names={pendiente:'Pendiente',en_desarrollo:'En desarrollo',finalizada:'Completada'};item.append(el('p','Estado: '+(names[before.status]||before.status)+' → '+(names[after.status]||after.status)));}
    history.append(item);
   }
@@ -64,7 +69,7 @@ window.JzbTaskEditor=(()=>{
  async function saveRow(values){
   const headers={'Prefer':'return=representation'};
   if(current){
-   if(Object.entries(values).every(([key,value])=>(current[key]??null)===(value??null)))return;
+   if(Object.entries(values).every(([key,value])=>JSON.stringify(current[key]??null)===JSON.stringify(value??null)))return;
    const rows=await api('/rest/v1/jzb_tasks?id=eq.'+encodeURIComponent(current.id)+'&revision=eq.'+current.revision,{method:'PATCH',headers,body:JSON.stringify(values)});
    if(!rows.length)throw new Error('Otra persona modificó esta tarea. Cierra el formulario, actualiza las tareas y vuelve a editarla.');
    current=rows[0];return;
@@ -93,7 +98,7 @@ window.JzbTaskEditor=(()=>{
  }
  async function save(event){
   event.preventDefault();if(busy||!canManage||!api)return;showMessage('');
-  try{const values=payload();if(!values.title||!values.description||!values.section||(!q('taskNoDeadline').checked&&!values.due_date))throw new Error('Completa título, instrucciones, sección y plazo, o marca Sin plazo.');validateFiles();}
+  try{if(canMarkComplete&&!directoryReady)throw new Error('Espera a que carguen los perfiles responsables o vuelve a abrir el formulario.');const values=payload();if(!values.title||!values.description||!values.section||(!q('taskNoDeadline').checked&&!values.due_date))throw new Error('Completa título, instrucciones, sección y plazo, o marca Sin plazo.');validateFiles();}
   catch(e){showMessage(e.message);return;}
   setBusy(true);let completed=false;
   try{
@@ -116,7 +121,7 @@ window.JzbTaskEditor=(()=>{
   }catch(e){q('panelMessage').textContent=e.message||'No se pudo cambiar el estado de la tarea.';}
   finally{button.disabled=!canMarkComplete;}
  }
- function clear(){busy=false;current=null;draftId=null;queue=[];canManage=false;canMarkComplete=false;api=null;refresh=null;q('taskForm').reset();q('taskExistingFiles').replaceChildren();q('taskHistory').replaceChildren();q('taskFileSelection').replaceChildren();showMessage('');if(q('taskEditor').open)q('taskEditor').close();}
+ function clear(){directoryRequest++;directory=[];directoryReady=false;q('taskAssigneeOptions').replaceChildren();busy=false;current=null;draftId=null;queue=[];canManage=false;canMarkComplete=false;api=null;refresh=null;q('taskForm').reset();q('taskExistingFiles').replaceChildren();q('taskHistory').replaceChildren();q('taskFileSelection').replaceChildren();showMessage('');if(q('taskEditor').open)q('taskEditor').close();}
  q('createTask').onclick=()=>open();q('taskCancel').onclick=close;q('taskClose').onclick=close;q('taskNoDeadline').onchange=updateDeadline;q('taskFiles').onchange=fileSelection;q('taskForm').onsubmit=save;
  q('taskEditor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
  return {configure,openCreate:section=>open(section),openEdit:task=>open(task.section,task),clear,canManage:()=>canManage,canComplete:()=>canMarkComplete,setCompleted};
