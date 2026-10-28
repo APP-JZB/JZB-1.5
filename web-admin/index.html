@@ -9,6 +9,7 @@
 :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#17211e;background:#f2f5f2}
 *{box-sizing:border-box}body{margin:0}.header{background:#173f35;color:#fff;padding:22px;display:flex;gap:12px;align-items:center}.mark{border:1px solid #b8d0c2;border-radius:10px;padding:12px;font-weight:800}.brand{font-weight:800;letter-spacing:.06em}.muted{color:#627169;line-height:1.5}.wrap{max-width:760px;margin:44px auto;padding:0 18px}.card{background:#fff;border:1px solid #dce5de;border-radius:18px;padding:26px;box-shadow:0 12px 34px #163c2d0c}.login{max-width:450px;margin:0 auto}h1{font-size:25px;margin:0 0 8px}.field{display:block;font-weight:700;font-size:13px;margin:18px 0 7px}input{width:100%;padding:13px;border:1px solid #cbd6ce;border-radius:9px;font:inherit}button{padding:13px 16px;border:0;border-radius:9px;font:inherit;font-weight:700;cursor:pointer}.primary{width:100%;background:#1d5745;color:#fff;margin-top:20px}.secondary{background:#e8efea;color:#244b3b}.message{font-size:13px;white-space:pre-wrap;color:#8b2e2e}.hidden{display:none}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.pill{background:#e4f1e9;color:#20533e;padding:6px 10px;border-radius:99px;font-size:12px;font-weight:800}.tile{border:1px solid #e0e7e1;border-radius:12px;padding:18px;margin-top:18px}footer{text-align:center;color:#6d7972;font-size:12px;padding:24px}
 </style>
+<link rel="stylesheet" href="tasks.css">
 </head>
 <body>
 <header class="header"><div class="mark">JZB</div><div><div class="brand">JEFATURA DE ZONAS DE BIENESTAR</div><div style="font-size:12px;color:#d1e0d7">Portal de administración institucional</div></div></header>
@@ -27,11 +28,16 @@
 <button id="resetSubmit" class="primary" type="submit">Guardar contraseña</button><p id="resetMessage" class="message" role="alert"></p></form></section>
 <section id="panel" class="card hidden">
 <div class="row"><div><h1>Panel de administración</h1><p id="welcome" class="muted"></p></div><span class="pill">ADMIN</span></div>
-<div class="tile"><strong>Acceso administrativo verificado</strong><p class="muted">La autenticación y el rol se validaron con Supabase. Los módulos se incorporarán progresivamente.</p></div>
-<div class="tile"><strong>Próxima etapa</strong><p class="muted">Agregar recuperación de acceso, usuarios y módulos de gestión. En esta etapa no se importan nóminas ni datos operativos antiguos.</p></div>
+<div class="dashboard-title"><h2>Consolidado de tareas</h2><button id="refreshTasks" class="secondary" type="button">Actualizar tareas</button></div>
+<p id="taskLoadMessage" class="task-load-note" role="status" aria-live="polite"></p>
+<div class="dashboard-stats"><div class="dashboard-stat"><span>Total de tareas</span><strong id="totalTasks">—</strong></div><div class="dashboard-stat"><span>Pendientes o en desarrollo</span><strong id="openTasks">—</strong></div><div class="dashboard-stat"><span>Antecedentes por revisar</span><strong id="reviewTasks">—</strong></div><div class="dashboard-stat"><span>Sin plazo confirmado</span><strong id="unconfirmedTasks">—</strong></div></div>
+<div class="dashboard-grid"><section class="dashboard-box"><h2>Resumen por sección</h2><div class="table-scroll"><table><thead><tr><th>Sección</th><th>Total</th><th>En desarrollo</th><th>Finalizadas</th><th>Vencidas</th></tr></thead><tbody id="sectionRows"></tbody></table></div></section>
+<section class="dashboard-box"><h2>Calendario general de plazos</h2><div class="calendar-toolbar"><button id="calendarPrev" class="secondary" aria-label="Mes anterior" type="button">‹</button><strong id="calendarMonth"></strong><button id="calendarNext" class="secondary" aria-label="Mes siguiente" type="button">›</button></div><div class="calendar-week"><span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span></div><div id="calendarDays" class="calendar-days"></div><div id="calendarDetail" class="calendar-detail"></div></section></div>
+<div class="dashboard-title tasks-heading"><h2>Tareas cargadas</h2><span id="taskCount" class="pill"></span></div><div class="task-filters"><label for="taskSection">Sección</label><select id="taskSection"><option value="">Todas las secciones</option></select><input id="taskSearch" type="search" placeholder="Buscar tareas o responsables" aria-label="Buscar tareas o responsables"></div><div id="taskList"></div>
 <button id="logout" class="secondary" style="margin-top:20px">Cerrar sesión</button><p id="panelMessage" class="message"></p>
 </section>
 </main><footer>JZB · Acceso restringido · Mantén tus credenciales privadas</footer>
+<script src="tasks.js"></script>
 <script>
 const API='https://zuqvoutmydvwrykoklgq.supabase.co';
 const KEY='sb_publishable_NLo8kL6FOr1hVRoeUu7aXw_UsldHY3u';
@@ -52,6 +58,7 @@ async function enter(accessToken,user) {
  if(!profile||profile.role!=='admin') {token=null;throw new Error('La cuenta inició sesión, pero no tiene rol admin en public.profiles.');}
  $('login').classList.add('hidden');$('panel').classList.remove('hidden');
  $('welcome').textContent='Sesión iniciada como '+(profile.display_name||profile.email||user.email||'administrador')+'.';
+ await JzbDashboard.load(api);
 }
 $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();$('loginMessage').textContent='';$('submit').disabled=true;$('submit').textContent='Verificando…';
@@ -85,9 +92,10 @@ $('resetForm').addEventListener('submit',async e=>{
  }catch(e){$('resetMessage').textContent='No fue posible cambiar la contraseña. Solicita un enlace nuevo e inténtalo otra vez.';}
  finally{$('resetSubmit').disabled=false;}
 });
+$('refreshTasks').addEventListener('click',()=>JzbDashboard.load(api));
 $('logout').addEventListener('click',async()=>{
  try{await api('/auth/v1/logout',{method:'POST'});}catch(e){}
- token=null;sessionStorage.removeItem('jzb_session');$('password').value='';$('panel').classList.add('hidden');$('login').classList.remove('hidden');$('loginMessage').textContent='';
+ token=null;JzbDashboard.clear();sessionStorage.removeItem('jzb_session');$('password').value='';$('panel').classList.add('hidden');$('login').classList.remove('hidden');$('loginMessage').textContent='';
 });
 (async()=>{
  const hash=new URLSearchParams(location.hash.slice(1));
@@ -101,3 +109,4 @@ $('logout').addEventListener('click',async()=>{
 })();
 </script>
 </body></html>
+
