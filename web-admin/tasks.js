@@ -2,7 +2,7 @@
 window.JzbDashboard = (() => {
  const q=id=>document.getElementById(id);
  const sections=['Asistencial','Coordinación Habitacional','Servicio Bandas','Planificación','Personal','Finanzas','Recreacional','Logística'];
- let tasks=[],date=null,selected=null;
+ let tasks=[],date=null,selected=null,progressByTask=new Map();
  const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const initialDate=today().split('-').map(Number);date=new Date(initialDate[0],initialDate[1]-1,1);
@@ -11,6 +11,7 @@ window.JzbDashboard = (() => {
  const state=t=>t.status==='finalizada'?'Finalizada':t.due_date&&t.due_date<today()?'Vencida':t.status==='en_desarrollo'?'En desarrollo':'Pendiente';
  function taskCard(t){
   const card=node('article',undefined,'task-card');card.append(node('h3',t.title),node('p',`${t.section} · ${state(t)}`,'muted'));
+  if(t.status!=='finalizada'&&progressByTask.get(t.id)?.ready_for_review)card.append(node('p','Lista para revisión de la Jefatura','review-tag'));
   card.append(node('p',t.description));
   card.append(node('p','Responsable indicado: '+(t.assignee_text||'Por confirmar'),'muted'));
   card.append(node('p','Plazo: '+format(t.due_date),'deadline'));
@@ -22,6 +23,7 @@ window.JzbDashboard = (() => {
   if(complete.disabled)complete.setAttribute('title','Solo el Jefe y el Subjefe pueden cambiar el estado.');
   complete.onclick=()=>window.JzbTaskEditor?.setCompleted(t,complete);card.append(complete);
   if(t.completed_at)card.append(node('p','Completada el '+new Intl.DateTimeFormat('es-CL',{dateStyle:'short',timeStyle:'short',timeZone:'America/Santiago'}).format(new Date(t.completed_at)),'completion-note'));
+  const progress=node('button','Comentarios y avances','secondary');progress.type='button';progress.onclick=()=>window.JzbTaskProgress?.open(t);card.append(progress);
   return card;
  }
  function renderList(){
@@ -102,7 +104,7 @@ window.JzbDashboard = (() => {
  }
  async function load(api){
   q('taskLoadMessage').textContent='Cargando tareas…';q('refreshTasks').disabled=true;
-  try{const rows=await api('/rest/v1/jzb_tasks?select=id,section,title,description,assignee_text,status,due_date,deadline_text,needs_review,review_notes,revision,completed_at&order=section.asc,created_at.asc&limit=1000');if(!Array.isArray(rows))throw new Error('Respuesta no válida');tasks=rows;renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent=tasks.length?'Los registros señalados requieren validar sus antecedentes. Puedes crear tareas y consultar sus documentos.':'Todavía no hay tareas cargadas.';}
+  try{const rows=await api('/rest/v1/jzb_tasks?select=id,section,title,description,assignee_text,status,due_date,deadline_text,needs_review,review_notes,revision,completed_at&order=section.asc,created_at.asc&limit=1000');if(!Array.isArray(rows))throw new Error('Respuesta no válida');tasks=rows;progressByTask=new Map();try{const advances=await api('/rest/v1/jzb_task_comments?select=task_id,ready_for_review,created_at&order=created_at.desc&limit=10000');for(const a of advances)if(!progressByTask.has(a.task_id))progressByTask.set(a.task_id,a);}catch(e){}renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent=tasks.length?'Los registros señalados requieren validar sus antecedentes. Puedes crear tareas y consultar sus documentos.':'Todavía no hay tareas cargadas.';}
   catch(e){tasks=[];renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='No fue posible cargar las tareas. Vuelve a iniciar sesión si la sesión venció o intenta actualizar.';}
   finally{q('refreshTasks').disabled=false;}
  }
