@@ -43,6 +43,12 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  elements.taskList.children[0].children[0].children[2].onclick();assert.equal(openedSection,'Asistencial','create button exists in an empty section');
  const existingCard=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Logística')).children.find(child=>child.tag==='article');existingCard.children.find(child=>child.textContent==='Editar tarea').onclick();assert.equal(editedTask.id,'a','edit button opens the selected task');
  assert.match(elements.taskList.children[0].children[0].textContent,/Asistencial/);assert.match(elements.taskList.textContent,/<img src=x/,'title remains literal text');
+ await dashboard.load(async path=>path.includes('jzb_task_comments')?[{task_id:'a',actor_name:'Jefe de sección',section:'Logística',body:'Avance <img src=x> registrado',ready_for_review:true,created_at:'2026-10-28T13:00:00Z'}]:rows);
+ assert.match(elements.taskList.textContent,/Avance <img src=x> registrado/,'comments render as safe literal text below task');
+ const commented=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Logística')).children.find(child=>child.tag==='article');
+ assert.equal(commented.children.at(-1).className,'task-inline-comments','comments follow task controls');
+ const uncommented=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Personal')).children.find(child=>child.tag==='article');
+ assert.equal(uncommented.children.some(child=>child.className==='task-inline-comments'),false,'no empty comments block');
  const assignedRows=rows.map(t=>({...t,assignee_text:'RESPONSABLE DE PRUEBA'}));
  await dashboard.load(async()=>assignedRows);
  assert.equal(elements.taskList.children.filter(group=>group.children.some(child=>child.tag==='article')).length,2,'different sections stay separate even with the same assignee');

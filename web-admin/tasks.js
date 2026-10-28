@@ -2,7 +2,7 @@
 window.JzbDashboard = (() => {
  const q=id=>document.getElementById(id);
  const sections=['Asistencial','Coordinación Habitacional','Servicio Bandas','Planificación','Personal','Finanzas','Recreacional','Logística'];
- let tasks=[],date=null,selected=null,progressByTask=new Map();
+ let tasks=[],date=null,selected=null,progressByTask=new Map(),commentsByTask=new Map();
  const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const initialDate=today().split('-').map(Number);date=new Date(initialDate[0],initialDate[1]-1,1);
@@ -24,6 +24,17 @@ window.JzbDashboard = (() => {
   complete.onclick=()=>window.JzbTaskEditor?.setCompleted(t,complete);card.append(complete);
   if(t.completed_at)card.append(node('p','Completada el '+new Intl.DateTimeFormat('es-CL',{dateStyle:'short',timeStyle:'short',timeZone:'America/Santiago'}).format(new Date(t.completed_at)),'completion-note'));
   const progress=node('button','Comentarios y avances','secondary');progress.type='button';progress.onclick=()=>window.JzbTaskProgress?.open(t);card.append(progress);
+  const comments=commentsByTask.get(t.id)||[];
+  if(comments.length){
+   const history=node('section',undefined,'task-inline-comments');history.append(node('h4','Comentarios y avances'));
+   for(const comment of comments){const entry=node('article',undefined,'progress-entry');
+    entry.append(node('strong',comment.actor_name+' · '+comment.section));
+    entry.append(node('p',new Intl.DateTimeFormat('es-CL',{dateStyle:'short',timeStyle:'short',timeZone:'America/Santiago'}).format(new Date(comment.created_at)),'muted'));
+    if(comment.ready_for_review)entry.append(node('b','Trabajo cumplido · Listo para revisión'));
+    entry.append(node('p',comment.body));history.append(entry);
+   }
+   card.append(history);
+  }
   return card;
  }
  function renderList(){
@@ -104,11 +115,11 @@ window.JzbDashboard = (() => {
  }
  async function load(api){
   q('taskLoadMessage').textContent='Cargando tareas…';q('refreshTasks').disabled=true;
-  try{const rows=await api('/rest/v1/jzb_tasks?select=id,section,title,description,assignee_text,status,due_date,deadline_text,needs_review,review_notes,revision,completed_at&order=section.asc,created_at.asc&limit=1000');if(!Array.isArray(rows))throw new Error('Respuesta no válida');tasks=rows;progressByTask=new Map();try{const advances=await api('/rest/v1/jzb_task_comments?select=task_id,ready_for_review,created_at&order=created_at.desc&limit=10000');for(const a of advances)if(!progressByTask.has(a.task_id))progressByTask.set(a.task_id,a);}catch(e){}renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent=tasks.length?'Los registros señalados requieren validar sus antecedentes. Puedes crear tareas y consultar sus documentos.':'Todavía no hay tareas cargadas.';}
-  catch(e){tasks=[];renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='No fue posible cargar las tareas. Vuelve a iniciar sesión si la sesión venció o intenta actualizar.';}
+  try{const rows=await api('/rest/v1/jzb_tasks?select=id,section,title,description,assignee_text,status,due_date,deadline_text,needs_review,review_notes,revision,completed_at&order=section.asc,created_at.asc&limit=1000');if(!Array.isArray(rows))throw new Error('Respuesta no válida');tasks=rows;progressByTask=new Map();commentsByTask=new Map();try{let offset=0;while(true){const advances=await api('/rest/v1/jzb_task_comments?select=id,task_id,actor_name,section,body,ready_for_review,created_at&order=created_at.desc,id.desc&limit=1000&offset='+offset);for(const a of advances){if(!a.task_id)continue;if(!progressByTask.has(a.task_id))progressByTask.set(a.task_id,a);if(!commentsByTask.has(a.task_id))commentsByTask.set(a.task_id,[]);commentsByTask.get(a.task_id).push(a);}if(advances.length<1000)break;offset+=1000;}}catch(e){}renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent=tasks.length?'Los registros señalados requieren validar sus antecedentes. Puedes crear tareas y consultar sus documentos.':'Todavía no hay tareas cargadas.';}
+  catch(e){tasks=[];progressByTask.clear();commentsByTask.clear();renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='No fue posible cargar las tareas. Vuelve a iniciar sesión si la sesión venció o intenta actualizar.';}
   finally{q('refreshTasks').disabled=false;}
  }
- function clear(){if(q('calendarTasksDialog').open)q('calendarTasksDialog').close();tasks=[];selected=null;q('taskSearch').value='';q('taskSection').value='';renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='';}
+ function clear(){if(q('calendarTasksDialog').open)q('calendarTasksDialog').close();tasks=[];progressByTask.clear();commentsByTask.clear();selected=null;q('taskSearch').value='';q('taskSection').value='';renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='';}
  for(const section of sections){const o=node('option',section);o.value=section;q('taskSection').append(o);}
  q('taskSection').onchange=renderList;q('taskSearch').oninput=renderList;
  q('calendarPrev').onclick=()=>{date=new Date(date.getFullYear(),date.getMonth()-1,1);selected=null;renderCalendar();};
