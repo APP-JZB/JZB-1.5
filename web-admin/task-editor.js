@@ -1,7 +1,7 @@
 window.JzbTaskEditor=(()=>{
  const q=id=>document.getElementById(id),BUCKET='jzb-task-documents',MAX_BYTES=10*1024*1024;
  const allowed=/\.(pdf|docx?|xlsx?|pptx?|png|jpe?g|txt|csv)$/i;
- let api=null,refresh=null,canManage=false,current=null,draftId=null,busy=false,queue=[],previousFocus=null;
+ let api=null,refresh=null,canManage=false,canMarkComplete=false,current=null,draftId=null,busy=false,queue=[],previousFocus=null;
  const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
  const pathEncode=p=>p.split('/').map(encodeURIComponent).join('/');
  const dateText=d=>d?new Intl.DateTimeFormat('es-CL',{dateStyle:'medium'}).format(new Date(d+'T12:00:00')):'Sin plazo';
@@ -22,7 +22,7 @@ window.JzbTaskEditor=(()=>{
   if(!queue.length)queue=files.map(file=>({file,id:crypto.randomUUID(),uploaded:false,registered:false}));
  }
  function close(){if(busy)return;q('taskEditor').close();if(previousFocus?.isConnected)previousFocus.focus();}
- function configure(request,reload,role){api=request;refresh=reload;canManage=['admin','jefe','subjefe'].includes(role);q('createTask').hidden=!canManage;}
+ function configure(request,reload,role){api=request;refresh=reload;canManage=['admin','jefe','subjefe'].includes(role);canMarkComplete=['jefe','subjefe'].includes(role);q('createTask').hidden=!canManage;}
  function open(section='',task=null){
   if(!canManage||!api)return;previousFocus=document.activeElement;current=task?{...task}:null;draftId=task?.id||crypto.randomUUID();queue=[];
   q('taskForm').reset();q('taskEditorTitle').textContent=task?'Editar tarea':'Crear tarea';q('taskSave').textContent=task?'Guardar cambios':'Crear tarea';
@@ -51,6 +51,7 @@ window.JzbTaskEditor=(()=>{
    const before=row.before_values,after=row.after_values;
    if(before&&before.section!==after.section)item.append(el('p','Sección: '+before.section+' → '+after.section));
    if(before&&before.due_date!==after.due_date)item.append(el('p','Plazo: '+dateText(before.due_date)+' → '+dateText(after.due_date)));
+   if(before&&before.status!==after.status){const names={pendiente:'Pendiente',en_desarrollo:'En desarrollo',finalizada:'Completada'};item.append(el('p','Estado: '+(names[before.status]||before.status)+' → '+(names[after.status]||after.status)));}
    history.append(item);
   }
  }
@@ -104,8 +105,19 @@ window.JzbTaskEditor=(()=>{
   }catch(e){showMessage(e.message||'No se pudo guardar. Revisa tu conexión y vuelve a intentar.');}
   finally{setBusy(false);if(completed)close();}
  }
- function clear(){busy=false;current=null;draftId=null;queue=[];canManage=false;api=null;refresh=null;q('taskForm').reset();q('taskExistingFiles').replaceChildren();q('taskHistory').replaceChildren();q('taskFileSelection').replaceChildren();showMessage('');if(q('taskEditor').open)q('taskEditor').close();}
+ async function setCompleted(task,button){
+  if(!canMarkComplete||!api){q('panelMessage').textContent='Solo el Jefe y el Subjefe pueden cambiar el estado de las tareas.';return;}
+  button.disabled=true;q('panelMessage').textContent='Actualizando estado…';
+  try{
+   const next=task.status==='finalizada'?'pendiente':'finalizada';
+   const rows=await api('/rest/v1/jzb_tasks?id=eq.'+encodeURIComponent(task.id)+'&revision=eq.'+task.revision,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({status:next})});
+   if(!rows.length)throw new Error('Otra persona modificó esta tarea. Actualiza el listado antes de cambiar su estado.');
+   await refresh();q('panelMessage').textContent=next==='finalizada'?'Tarea marcada como completada.':'Tarea reabierta.';
+  }catch(e){q('panelMessage').textContent=e.message||'No se pudo cambiar el estado de la tarea.';}
+  finally{button.disabled=!canMarkComplete;}
+ }
+ function clear(){busy=false;current=null;draftId=null;queue=[];canManage=false;canMarkComplete=false;api=null;refresh=null;q('taskForm').reset();q('taskExistingFiles').replaceChildren();q('taskHistory').replaceChildren();q('taskFileSelection').replaceChildren();showMessage('');if(q('taskEditor').open)q('taskEditor').close();}
  q('createTask').onclick=()=>open();q('taskCancel').onclick=close;q('taskClose').onclick=close;q('taskNoDeadline').onchange=updateDeadline;q('taskFiles').onchange=fileSelection;q('taskForm').onsubmit=save;
  q('taskEditor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
- return {configure,openCreate:section=>open(section),openEdit:task=>open(task.section,task),clear,canManage:()=>canManage};
+ return {configure,openCreate:section=>open(section),openEdit:task=>open(task.section,task),clear,canManage:()=>canManage,canComplete:()=>canMarkComplete,setCompleted};
 })();
