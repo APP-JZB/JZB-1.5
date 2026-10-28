@@ -105,7 +105,7 @@ window.JzbTaskEditor=(()=>{
   try{
    showMessage('Guardando tarea…');await saveRow(payload());q('taskEditorTitle').textContent='Editar tarea';
    let failed=0;for(const entry of queue){try{showMessage('Guardando documento '+entry.file.name+'…');await saveFile(entry);}catch(e){failed++;}}
-   q('taskSection').value=current.section;q('taskSearch').value='';await refresh();
+   q('taskSection').value='';q('taskSearch').value='';await refresh();
    if(failed){showMessage('La tarea está guardada. No se pudieron adjuntar '+failed+' archivo(s). Pulsa Reintentar para subir los pendientes; no se creará otra tarea.');q('taskSave').textContent='Reintentar adjuntos';await loadDetails(current.id);}
    else{completed=true;q('panelMessage').textContent='Tarea guardada correctamente.';}
   }catch(e){showMessage(e.message||'No se pudo guardar. Revisa tu conexión y vuelve a intentar.');}
