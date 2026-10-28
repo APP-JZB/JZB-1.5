@@ -14,6 +14,7 @@ const html=fs.readFileSync(path.join(__dirname,'../web-admin/index.html'),'utf8'
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);assert.equal(new Set(ids).size,ids.length,'unique element IDs');
 for(const target of ['consolidadoTareas','calendarioTareas','tareasCargadas'])assert.ok(html.includes('href="#'+target+'"')&&ids.includes(target),'shortcut targets exist');
 assert.ok(html.indexOf('id="calendarDetail"')>html.indexOf('id="calendarTasksDialog"'),'task detail is in the popup');
+assert.match(html,/<div class="calendar-navigation"><button id="calendarPrev"[\s\S]*?id="calendarToday"[\s\S]*?id="calendarNext"/,'navigation buttons grouped in order');
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
 let openedSection=null,editedTask=null;
 const context={window:{JzbTaskEditor:{canManage:()=>true,openCreate:section=>{openedSection=section;},openEdit:task=>{editedTask=task;}}},document:{getElementById:id=>{assert.ok(elements[id],`Missing element ${id}`);return elements[id];},createElement:t=>new Element(t)},Date:FixedDate,Intl,console};
@@ -66,8 +67,9 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  elements.taskSearch.value='no existe';elements.taskSearch.oninput();assert.match(elements.taskList.textContent,/No hay tareas/);
  elements.calendarNext.onclick();const day=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('12 de noviembre de 2026'));assert.ok(day);day.onclick();assert.match(elements.calendarDetail.textContent,/Tarea de prueba/,'calendar ignores section filter');
  elements.calendarView.value='week';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,7,'weekly view shows seven days');
- elements.calendarToday.onclick();assert.match(elements.calendarMonth.textContent,/26 de octubre de 2026/);assert.match(elements.calendarMonth.textContent,/1 de noviembre de 2026/,'week crosses month boundary');
- elements.calendarNext.onclick();assert.match(elements.calendarMonth.textContent,/2 de noviembre de 2026/,'next advances a week');
+ elements.calendarToday.onclick();assert.equal(elements.calendarMonth.textContent,'26 octubre al 01 noviembre 2026','week crosses month boundary');
+ elements.calendarNext.onclick();assert.equal(elements.calendarMonth.textContent,'2 al 8 noviembre 2026','same month uses short range');
+ elements.calendarToday.onclick();for(let i=0;i<3;i++)elements.calendarPrev.onclick();assert.equal(elements.calendarMonth.textContent,'5 al 11 octubre 2026');elements.calendarPrev.onclick();assert.equal(elements.calendarMonth.textContent,'28 septiembre al 04 octubre 2026');elements.calendarToday.onclick();for(let i=0;i<9;i++)elements.calendarNext.onclick();assert.equal(elements.calendarMonth.textContent,'28 diciembre 2026 al 03 enero 2027','cross-year range retains both years');
  elements.calendarToday.onclick();elements.calendarView.value='day';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,1,'daily view shows one day');assert.equal(elements.calendarWeek.hidden,true);
  elements.calendarNext.onclick();assert.match(elements.calendarMonth.textContent,/29 de octubre de 2026/,'next advances one day');elements.calendarPrev.onclick();assert.match(elements.calendarMonth.textContent,/28 de octubre de 2026/);
  elements.calendarView.value='month';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,42);assert.equal(elements.calendarWeek.hidden,false);
