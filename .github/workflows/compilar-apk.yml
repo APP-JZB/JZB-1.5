@@ -66,6 +66,7 @@ jobs:
         run: |
           cd "$APP_DIR"
           npm ci
+          npx expo install react-native-webview expo-file-system expo-sharing
 
       - name: Generar proyecto Android
         run: |
