@@ -5,9 +5,9 @@ window.JzbTaskEditor=(()=>{
  const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
  let directory=[],directoryReady=false,directoryRequest=0;
  const selectedResponsibleIds=()=>Array.from(q('taskAssigneeOptions').children).filter(label=>label.children[0]?.checked).map(label=>label.children[0].value);
- function updateResponsibleSummary(){const count=selectedResponsibleIds().length;q('taskAssigneeSummary').textContent=count?count+' responsable'+(count===1?' seleccionado':'s seleccionados'):'Seleccionar responsables';}
+ function updateResponsibleSummary(){const count=selectedResponsibleIds().length;const summary=q('taskAssigneeSummary');if(!summary)return;summary.textContent=count?count+' responsable'+(count===1?' seleccionado':'s seleccionados'):'Seleccionar responsables';}
  function renderResponsibleOptions(){q('taskAssigneeOptions').replaceChildren();for(const person of directory){const label=el('label',undefined,'responsible-option'),box=el('input');box.type='checkbox';box.value=person.id;box.checked=(current?.responsible_ids||[]).includes(person.id);box.disabled=!canMarkComplete||busy;box.onchange=updateResponsibleSummary;label.append(box,el('span',person.rank+' '+person.full_name+' · '+person.position));q('taskAssigneeOptions').append(label);}updateResponsibleSummary();}
- async function loadDirectory(){const version=++directoryRequest;directoryReady=false;q('taskAssigneeMessage').textContent='Cargando perfiles…';try{const rows=await api('/rest/v1/jzb_responsibles?select=id,rank,full_name,position,section,active&active=eq.true&order=full_name.asc');if(version!==directoryRequest)return;directory=rows;directoryReady=true;renderResponsibleOptions();q('taskAssigneeMessage').textContent=canMarkComplete?'':'Solo el Jefe o Subjefe puede designar responsables.';}catch(e){if(version===directoryRequest)q('taskAssigneeMessage').textContent='No se pudieron cargar los perfiles. Cierra y vuelve a abrir para reintentar.';}}
+ async function loadDirectory(){const version=++directoryRequest;directoryReady=false;q('taskAssigneeMessage').textContent='Cargando perfiles…';try{const rows=await api('/rest/v1/jzb_responsibles?select=id,rank,full_name,position,section,active&active=eq.true&order=full_name.asc');if(version!==directoryRequest)return;directory=rows;directoryReady=true;renderResponsibleOptions();q('taskAssigneeMessage').textContent=canMarkComplete?'':'Solo el Administrador, Jefe o Subjefe puede designar responsables.';}catch(e){if(version===directoryRequest)q('taskAssigneeMessage').textContent='No se pudieron cargar los perfiles. Cierra y vuelve a abrir para reintentar.';}}
  const pathEncode=p=>p.split('/').map(encodeURIComponent).join('/');
  const dateText=d=>d?new Intl.DateTimeFormat('es-CL',{dateStyle:'medium'}).format(new Date(d+'T12:00:00')):'Sin plazo';
  const payload=()=>({title:q('taskTitle').value.trim(),description:q('taskDescription').value.trim(),section:q('taskAssignedSection').value,assignee_text:q('taskResponsible').value.trim()||null,due_date:q('taskNoDeadline').checked?null:q('taskDueDate').value,...(canMarkComplete&&directoryReady?{responsible_ids:selectedResponsibleIds()}: {})});
@@ -27,16 +27,16 @@ window.JzbTaskEditor=(()=>{
   if(!queue.length)queue=files.map(file=>({file,id:crypto.randomUUID(),uploaded:false,registered:false}));
  }
  function close(){if(busy)return;q('taskEditor').close();if(previousFocus?.isConnected)previousFocus.focus();}
- function configure(request,reload,role){api=request;refresh=reload;canManage=['admin','jefe','subjefe'].includes(role);canMarkComplete=['jefe','subjefe'].includes(role);q('createTask').hidden=!canManage;}
+ function configure(request,reload,role){api=request;refresh=reload;canManage=['admin','jefe','subjefe'].includes(role);canMarkComplete=['admin','jefe','subjefe'].includes(role);q('createTask').hidden=!canManage;}
  function open(section='',task=null){
   if(!canManage||!api)return;previousFocus=document.activeElement;current=task?{...task}:null;draftId=task?.id||crypto.randomUUID();queue=[];
-  q('taskForm').reset();q('taskAssigneeDropdown').open=false;q('taskEditorTitle').textContent=task?'Editar tarea':'Crear tarea';q('taskSave').textContent=task?'Guardar cambios':'Crear tarea';
+  q('taskForm').reset();if(q('taskAssigneeDropdown'))q('taskAssigneeDropdown').open=false;q('taskEditorTitle').textContent=task?'Editar tarea':'Crear tarea';q('taskSave').textContent=task?'Guardar cambios':'Crear tarea';
   q('taskAssignedSection').value=task?.section||section;q('taskTitle').value=task?.title||'';q('taskDescription').value=task?.description||'';q('taskResponsible').value=task?.assignee_text||'';
   q('taskNoDeadline').checked=task?!task.due_date:false;q('taskDueDate').value=task?.due_date||'';updateDeadline();
   q('taskFileSelection').replaceChildren();q('taskExistingFiles').replaceChildren();q('taskHistory').replaceChildren();showMessage('');setBusy(false);
   q('taskExistingFiles').textContent=task?'Cargando documentos…':'Todavía no hay documentos adjuntos.';
   q('taskHistory').textContent=task?'Cargando historial…':'El historial se generará al crear la tarea.';
-  renderResponsibleOptions();loadDirectory();q('taskEditor').showModal();q('taskTitle').focus();if(task)loadDetails(task.id);
+  q('taskEditor').showModal();q('taskTitle').focus();renderResponsibleOptions();loadDirectory();if(task)loadDetails(task.id);
  }
  async function loadDetails(taskId){
   const existing=q('taskExistingFiles'),history=q('taskHistory');
@@ -112,7 +112,7 @@ window.JzbTaskEditor=(()=>{
   finally{setBusy(false);if(completed)close();}
  }
  async function setCompleted(task,button){
-  if(!canMarkComplete||!api){q('panelMessage').textContent='Solo el Jefe y el Subjefe pueden cambiar el estado de las tareas.';return;}
+  if(!canMarkComplete||!api){q('panelMessage').textContent='Solo el Administrador, Jefe o Subjefe pueden cambiar el estado de las tareas.';return;}
   button.disabled=true;q('panelMessage').textContent='Actualizando estado…';
   try{
    const next=task.status==='finalizada'?'pendiente':'finalizada';
