@@ -24,15 +24,16 @@ window.JzbDashboard = (() => {
   if(!list.length)q('taskList').append(node('p','No hay tareas que coincidan con la búsqueda.','muted'));
   const groups=new Map();
   for(const task of list){
-   const assignee=(task.assignee_text||'').trim();
-   const label=assignee||task.section+' · Responsable por confirmar';
-   const key=assignee?assignee.toLocaleUpperCase('es'):'section:'+task.section;
+   const key=task.section;
+   const label=key==='Coordinación Habitacional'?'Habitacional':key;
    if(!groups.has(key))groups.set(key,{label,items:[]});
    groups.get(key).items.push(task);
   }
-  for(const group of groups.values()){
-   const section=node('section',undefined,'task-assignee-group');
-   const heading=node('div',undefined,'task-assignee-heading');
+  for(const name of sections){
+   const group=groups.get(name);
+   if(!group)continue;
+   const section=node('section',undefined,'task-section-group');
+   const heading=node('div',undefined,'task-section-heading');
    heading.append(node('h3',group.label),node('span',group.items.length+' tarea'+(group.items.length===1?'':'s'),'pill'));
    section.append(heading);
    for(const task of group.items)section.append(taskCard(task));
