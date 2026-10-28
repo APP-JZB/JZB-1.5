@@ -19,7 +19,13 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
 (async()=>{
  await dashboard.load(async path=>{assert.match(path,/^\/rest\/v1\/jzb_tasks/);return rows;});
  assert.equal(elements.totalTasks.textContent,'2');assert.equal(elements.unconfirmedTasks.textContent,'1');assert.equal(elements.reviewTasks.textContent,'1');
- assert.equal(elements.taskList.children.length,2);assert.match(elements.taskList.children[0].textContent,/<img src=x/,'title remains literal text');
+ assert.equal(elements.taskList.children.length,2);
+ assert.equal(elements.taskList.children[0].tag,'section');
+ assert.match(elements.taskList.children[0].children[0].textContent,/Responsable por confirmar/);assert.match(elements.taskList.children[0].textContent,/<img src=x/,'title remains literal text');
+ const assignedRows=rows.map(t=>({...t,assignee_text:'RESPONSABLE DE PRUEBA'}));
+ await dashboard.load(async()=>assignedRows);
+ assert.equal(elements.taskList.children.length,1,'same assignee grouped under a single subtitle');
+ assert.match(elements.taskList.children[0].children[0].textContent,/RESPONSABLE DE PRUEBA2 tareas/);
  elements.taskSection.value='Logística';elements.taskSection.onchange();assert.equal(elements.taskList.children.length,1);
  elements.taskSearch.value='no existe';elements.taskSearch.oninput();assert.match(elements.taskList.textContent,/No hay tareas/);
  elements.calendarNext.onclick();const day=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('12 de noviembre de 2026'));assert.ok(day);day.onclick();assert.match(elements.calendarDetail.textContent,/Tarea de prueba/,'calendar ignores section filter');
