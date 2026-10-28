@@ -1,7 +1,7 @@
 /* Task data stays in Supabase; never bundle operational records in public assets. */
 window.JzbDashboard = (() => {
  const q=id=>document.getElementById(id);
- const sections=['Asistencial','Coordinación Habitacional','Servicio Bandas','Planificación','Personal','Finanzas','Recreacional','Logística'];
+ const sections=['Jefe Jefatura Zonas de Bienestar','Sub Jefe Jefatura Zonas de Bienestar','Asistencial','Coordinación Habitacional','Servicio Bandas','Planificación','Personal','Finanzas','Recreacional','Logística'];
  let tasks=[],date=null,selected=null,calendarView="month",progressByTask=new Map(),commentsByTask=new Map(),responsibles=new Map();
  const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());

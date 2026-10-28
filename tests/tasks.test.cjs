@@ -38,11 +38,12 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  elements.calendarTasksClose.onclick();assert.equal(elements.calendarTasksDialog.open,false);elements.calendarNext.onclick();elements.calendarToday.onclick();assert.match(elements.calendarMonth.textContent,/octubre de 2026/,'Today restores the current month');assert.match(elements.calendarDialogTitle.textContent,/28 oct/);
  await dashboard.load(async()=>rows);
  assert.equal(elements.totalTasks.textContent,'2');assert.equal(elements.unconfirmedTasks.textContent,'1');assert.equal(elements.reviewTasks.textContent,'1');
- assert.equal(elements.taskList.children.length,8,'every section has an entry point, including empty sections');
+ assert.equal(elements.taskList.children.length,10,'every section has an entry point, including empty sections');
  assert.equal(elements.taskList.children[0].tag,'section');
- elements.taskList.children[0].children[0].children[2].onclick();assert.equal(openedSection,'Asistencial','create button exists in an empty section');
+ assert.match(elements.taskList.children[0].textContent,/Jefe Jefatura Zonas de Bienestar/);assert.match(elements.taskList.children[1].textContent,/Sub Jefe Jefatura Zonas de Bienestar/);
+ elements.taskList.children[2].children[0].children[2].onclick();assert.equal(openedSection,'Asistencial','create button exists in an empty section');
  const existingCard=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Logística')).children.find(child=>child.tag==='article');existingCard.children.find(child=>child.textContent==='Editar tarea').onclick();assert.equal(editedTask.id,'a','edit button opens the selected task');
- assert.match(elements.taskList.children[0].children[0].textContent,/Asistencial/);assert.match(elements.taskList.textContent,/<img src=x/,'title remains literal text');
+ assert.match(elements.taskList.children[2].children[0].textContent,/Asistencial/);assert.match(elements.taskList.textContent,/<img src=x/,'title remains literal text');
  await dashboard.load(async path=>path.includes('jzb_task_comments')?[{task_id:'a',actor_name:'Jefe de sección',section:'Logística',body:'Avance <img src=x> registrado',ready_for_review:true,created_at:'2026-10-28T13:00:00Z'}]:rows);
  assert.match(elements.taskList.textContent,/Avance <img src=x> registrado/,'comments render as safe literal text below task');
  const commented=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Logística')).children.find(child=>child.tag==='article');
