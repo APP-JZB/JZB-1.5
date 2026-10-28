@@ -52,6 +52,7 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  assert.equal(uncommented.children.some(child=>child.className==='task-inline-comments'),false,'no empty comments block');
  await dashboard.load(async path=>path.includes('jzb_responsibles')?[{id:'person-a',rank:'TTE',full_name:'Responsable A',position:'Cargo A'},{id:'person-b',rank:'MAY',full_name:'Responsable B',position:'Cargo B'}]:path.includes('jzb_task_comments')?[]:rows.map(t=>({...t,responsible_ids:['person-a','person-b']})));
  assert.match(elements.taskList.textContent,/Responsable A/);assert.match(elements.taskList.textContent,/Responsable B/,'both joint responsible names appear on cards');
+ for(const [button,count] of [['statAll',2],['statOpen',1],['statReview',1],['statNoDeadline',1]]){elements[button].onclick();assert.equal(elements.statsTasksDialog.open,true);assert.equal(elements.statsDialogCount.textContent,count+' tarea'+(count===1?'':'s'));if(button!=='statAll')assert.doesNotMatch(elements.statsTasksList.textContent,/Tarea de prueba/);elements.statsTasksClose.onclick();assert.equal(elements.statsTasksDialog.open,false);}
  const assignedRows=rows.map(t=>({...t,assignee_text:'RESPONSABLE DE PRUEBA'}));
  await dashboard.load(async()=>assignedRows);
  assert.equal(elements.taskList.children.filter(group=>group.children.some(child=>child.tag==='article')).length,2,'different sections stay separate even with the same assignee');
@@ -71,6 +72,7 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  elements.calendarNext.onclick();assert.match(elements.calendarMonth.textContent,/29 de octubre de 2026/,'next advances one day');elements.calendarPrev.onclick();assert.match(elements.calendarMonth.textContent,/28 de octubre de 2026/);
  elements.calendarView.value='month';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,42);assert.equal(elements.calendarWeek.hidden,false);
  dashboard.clear();assert.equal(elements.totalTasks.textContent,'0');assert.equal(elements.calendarTasksDialog.open,false,'logout closes task popup');assert.doesNotMatch(elements.taskList.textContent,/<img/,'logout clears loaded data');
+ elements.statAll.onclick();assert.match(elements.statsTasksList.textContent,/No hay tareas en esta categoría/);dashboard.clear();assert.equal(elements.statsTasksDialog.open,false);
  await dashboard.load(async()=>{throw new Error('expired');});assert.match(elements.taskLoadMessage.textContent,/No fue posible/);assert.equal(elements.totalTasks.textContent,'0');
  console.log('PASS: counts, filters, calendar, safe text, logout and error state');
 })().catch(e=>{console.error(e);process.exitCode=1;});
