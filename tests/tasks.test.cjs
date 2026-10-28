@@ -1,0 +1,29 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const vm=require('node:vm');const path=require('node:path');
+class FixedDate extends Date{constructor(...args){super(...(args.length?args:['2026-10-28T12:00:00Z']));}}
+class Element {
+ constructor(tag='div'){this.tag=tag;this.children=[];this.value='';this.attrs={};this._text='';this.classList={add:()=>{}};}
+ set textContent(v){this._text=String(v);this.children=[];}
+ get textContent(){return this._text+this.children.map(x=>x.textContent).join('');}
+ append(...nodes){this.children.push(...nodes);}
+ replaceChildren(...nodes){this._text='';this.children=nodes;}
+ setAttribute(k,v){this.attrs[k]=v;}
+}
+const html=fs.readFileSync(path.join(__dirname,'../web-admin/index.html'),'utf8');
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);assert.equal(new Set(ids).size,ids.length,'unique element IDs');
+const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
+const context={window:{},document:{getElementById:id=>{assert.ok(elements[id],`Missing element ${id}`);return elements[id];},createElement:t=>new Element(t)},Date:FixedDate,Intl,console};
+vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../web-admin/tasks.js'),'utf8'),context);
+const dashboard=context.window.JzbDashboard;
+const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',description:'Texto de prueba',status:'pendiente',due_date:null,deadline_text:'9/10',needs_review:true,review_notes:'Año por confirmar'},{id:'b',section:'Personal',title:'Tarea de prueba',description:'Ejemplo',status:'finalizada',due_date:'2026-11-12',needs_review:false}];
+(async()=>{
+ await dashboard.load(async path=>{assert.match(path,/^\/rest\/v1\/jzb_tasks/);return rows;});
+ assert.equal(elements.totalTasks.textContent,'2');assert.equal(elements.unconfirmedTasks.textContent,'1');assert.equal(elements.reviewTasks.textContent,'1');
+ assert.equal(elements.taskList.children.length,2);assert.match(elements.taskList.children[0].textContent,/<img src=x/,'title remains literal text');
+ elements.taskSection.value='Logística';elements.taskSection.onchange();assert.equal(elements.taskList.children.length,1);
+ elements.taskSearch.value='no existe';elements.taskSearch.oninput();assert.match(elements.taskList.textContent,/No hay tareas/);
+ elements.calendarNext.onclick();const day=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('12 de noviembre de 2026'));assert.ok(day);day.onclick();assert.match(elements.calendarDetail.textContent,/Tarea de prueba/,'calendar ignores section filter');
+ dashboard.clear();assert.equal(elements.totalTasks.textContent,'0');assert.doesNotMatch(elements.taskList.textContent,/<img/,'logout clears loaded data');
+ await dashboard.load(async()=>{throw new Error('expired');});assert.match(elements.taskLoadMessage.textContent,/No fue posible/);assert.equal(elements.totalTasks.textContent,'0');
+ console.log('PASS: counts, filters, calendar, safe text, logout and error state');
+})().catch(e=>{console.error(e);process.exitCode=1;});
