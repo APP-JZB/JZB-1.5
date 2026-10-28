@@ -1,0 +1,19 @@
+{
+  "id": "/JZB-1.5/",
+  "name": "Jefatura de Zonas de Bienestar",
+  "short_name": "JZB",
+  "lang": "es-CL",
+  "start_url": "/JZB-1.5/",
+  "scope": "/JZB-1.5/",
+  "display": "standalone",
+  "background_color": "#f2f5f2",
+  "theme_color": "#173f35",
+  "icons": [
+    {
+      "src": "app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
