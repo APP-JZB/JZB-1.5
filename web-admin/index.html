@@ -9,13 +9,13 @@
 :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#17211e;background:#f2f5f2}
 *{box-sizing:border-box}body{margin:0}.header{background:#173f35;color:#fff;padding:22px;display:flex;gap:12px;align-items:center}.mark{border:1px solid #b8d0c2;border-radius:10px;padding:12px;font-weight:800}.brand{font-weight:800;letter-spacing:.06em}.muted{color:#627169;line-height:1.5}.wrap{max-width:760px;margin:44px auto;padding:0 18px}.card{background:#fff;border:1px solid #dce5de;border-radius:18px;padding:26px;box-shadow:0 12px 34px #163c2d0c}.login{max-width:450px;margin:0 auto}h1{font-size:25px;margin:0 0 8px}.field{display:block;font-weight:700;font-size:13px;margin:18px 0 7px}input{width:100%;padding:13px;border:1px solid #cbd6ce;border-radius:9px;font:inherit}button{padding:13px 16px;border:0;border-radius:9px;font:inherit;font-weight:700;cursor:pointer}.primary{width:100%;background:#1d5745;color:#fff;margin-top:20px}.secondary{background:#e8efea;color:#244b3b}.message{font-size:13px;white-space:pre-wrap;color:#8b2e2e}.hidden{display:none}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.pill{background:#e4f1e9;color:#20533e;padding:6px 10px;border-radius:99px;font-size:12px;font-weight:800}.tile{border:1px solid #e0e7e1;border-radius:12px;padding:18px;margin-top:18px}footer{text-align:center;color:#6d7972;font-size:12px;padding:24px}
 </style>
-<link rel="stylesheet" href="tasks.css">
+<link rel="stylesheet" href="tasks.css?v=20261028-create">
 </head>
 <body>
 <header class="header"><div class="mark">JZB</div><div><div class="brand">JEFATURA DE ZONAS DE BIENESTAR</div><div style="font-size:12px;color:#d1e0d7">Portal de administración institucional</div></div></header>
 <main class="wrap">
 <section id="login" class="card login">
-<h1>Acceso administrador</h1><p class="muted">Ingresa con tu cuenta autorizada. Solo los perfiles con rol administrador podrán acceder al panel.</p>
+<h1>Acceso al portal JZB</h1><p class="muted">Ingresa con tu cuenta autorizada para gestionar las tareas de la Jefatura.</p>
 <form id="loginForm">
 <label class="field" for="email">Correo electrónico</label><input id="email" type="email" autocomplete="username" required value="administradorjzb@gmail.com">
 <label class="field" for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password" required>
@@ -27,17 +27,30 @@
 <label class="field" for="confirmPassword">Confirmar contraseña</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
 <button id="resetSubmit" class="primary" type="submit">Guardar contraseña</button><p id="resetMessage" class="message" role="alert"></p></form></section>
 <section id="panel" class="card hidden">
-<div class="row"><div><h1>Panel de administración</h1><p id="welcome" class="muted"></p></div><span class="pill">ADMIN</span></div>
-<div class="dashboard-title"><h2>Consolidado de tareas</h2><button id="refreshTasks" class="secondary" type="button">Actualizar tareas</button></div>
+<div class="row"><div><h1>Gestión de tareas JZB</h1><p id="welcome" class="muted"></p></div><span class="pill">ADMIN</span></div>
+<div class="dashboard-title"><h2>Consolidado de tareas</h2><div class="task-actions"><button id="createTask" class="action-primary" type="button" hidden>Crear tarea</button><button id="refreshTasks" class="secondary" type="button">Actualizar tareas</button></div></div>
 <p id="taskLoadMessage" class="task-load-note" role="status" aria-live="polite"></p>
-<div class="dashboard-stats"><div class="dashboard-stat"><span>Total de tareas</span><strong id="totalTasks">—</strong></div><div class="dashboard-stat"><span>Pendientes o en desarrollo</span><strong id="openTasks">—</strong></div><div class="dashboard-stat"><span>Antecedentes por revisar</span><strong id="reviewTasks">—</strong></div><div class="dashboard-stat"><span>Sin plazo confirmado</span><strong id="unconfirmedTasks">—</strong></div></div>
+<div class="dashboard-stats"><div class="dashboard-stat"><span>Total de tareas</span><strong id="totalTasks">—</strong></div><div class="dashboard-stat"><span>Pendientes o en desarrollo</span><strong id="openTasks">—</strong></div><div class="dashboard-stat"><span>Antecedentes por revisar</span><strong id="reviewTasks">—</strong></div><div class="dashboard-stat"><span>Sin plazo</span><strong id="unconfirmedTasks">—</strong></div></div>
 <div class="dashboard-grid"><section class="dashboard-box"><h2>Resumen por sección</h2><div class="table-scroll"><table><thead><tr><th>Sección</th><th>Total</th><th>En desarrollo</th><th>Finalizadas</th><th>Vencidas</th></tr></thead><tbody id="sectionRows"></tbody></table></div></section>
 <section class="dashboard-box"><h2>Calendario general de plazos</h2><div class="calendar-toolbar"><button id="calendarPrev" class="secondary" aria-label="Mes anterior" type="button">‹</button><strong id="calendarMonth"></strong><button id="calendarNext" class="secondary" aria-label="Mes siguiente" type="button">›</button></div><div class="calendar-week"><span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span></div><div id="calendarDays" class="calendar-days"></div><div id="calendarDetail" class="calendar-detail"></div></section></div>
 <div class="dashboard-title tasks-heading"><h2>Tareas cargadas</h2><span id="taskCount" class="pill"></span></div><div class="task-filters"><label for="taskSection">Sección</label><select id="taskSection"><option value="">Todas las secciones</option></select><input id="taskSearch" type="search" placeholder="Buscar tareas o responsables" aria-label="Buscar tareas o responsables"></div><div id="taskList"></div>
 <button id="logout" class="secondary" style="margin-top:20px">Cerrar sesión</button><p id="panelMessage" class="message"></p>
 </section>
-</main><footer>JZB · Acceso restringido · Mantén tus credenciales privadas</footer>
-<script src="tasks.js"></script>
+</main><dialog id="taskEditor" class="task-editor" aria-labelledby="taskEditorTitle">
+<div class="editor-heading"><h2 id="taskEditorTitle">Crear tarea</h2><button id="taskClose" class="secondary" type="button" aria-label="Cerrar formulario">×</button></div>
+<form id="taskForm">
+<label class="field" for="taskTitle">Título de la tarea</label><input id="taskTitle" maxlength="240" required>
+<label class="field" for="taskDescription">Instrucciones y antecedentes</label><textarea id="taskDescription" rows="5" maxlength="20000" required placeholder="Describe qué se debe realizar y los antecedentes necesarios."></textarea>
+<div class="editor-grid"><div><label class="field" for="taskAssignedSection">Sección asignada</label><select id="taskAssignedSection" required><option value="">Selecciona una sección</option><option>Asistencial</option><option>Coordinación Habitacional</option><option>Servicio Bandas</option><option>Planificación</option><option>Personal</option><option>Finanzas</option><option>Recreacional</option><option>Logística</option></select></div><div><label class="field" for="taskResponsible">Responsable o destinatario (opcional)</label><input id="taskResponsible" maxlength="240" placeholder="Nombre o cargo"></div></div>
+<div class="editor-grid"><div><label class="field" for="taskDueDate">Plazo de cumplimiento</label><input id="taskDueDate" type="date" required></div><label class="checkbox-field"><input id="taskNoDeadline" type="checkbox">Sin plazo</label></div>
+<label class="field" for="taskFiles">Adjuntar documentos</label><input id="taskFiles" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.csv"><p class="muted editor-help">Hasta 5 archivos por guardado, de 10 MB cada uno. PDF, Word, Excel, PowerPoint, imágenes JPG/PNG, TXT o CSV.</p><ul id="taskFileSelection"></ul>
+<details class="editor-details"><summary>Documentos de la tarea</summary><div id="taskExistingFiles"></div></details>
+<details class="editor-details"><summary>Historial de cambios</summary><div id="taskHistory"></div></details>
+<p id="taskEditorMessage" class="message" role="status" aria-live="polite"></p><div class="editor-actions"><button id="taskCancel" class="secondary" type="button">Cancelar</button><button id="taskSave" class="action-primary" type="submit">Crear tarea</button></div>
+</form></dialog>
+<footer>JZB · Acceso restringido · Mantén tus credenciales privadas</footer>
+<script src="tasks.js?v=20261028-create"></script>
+<script src="task-editor.js?v=20261028-create"></script>
 <script>
 const API='https://zuqvoutmydvwrykoklgq.supabase.co';
 const KEY='sb_publishable_NLo8kL6FOr1hVRoeUu7aXw_UsldHY3u';
@@ -46,18 +59,21 @@ const $=id=>document.getElementById(id);
 async function api(path,options={}) {
  const headers={'apikey':KEY,'Content-Type':'application/json',...(options.headers||{})};
  if(token) headers.Authorization='Bearer '+token;
- const res=await fetch(API+path,{...options,headers});
- const body=await res.json().catch(()=>({}));
+ const {responseType,...fetchOptions}=options;
+ const res=await fetch(API+path,{...fetchOptions,headers});
+ const body=res.ok&&responseType==='blob'?await res.blob():await res.json().catch(()=>({}));
  if(!res.ok) throw new Error(body.msg||body.message||body.error_description||body.error||'Error de conexión ('+res.status+')');
  return body;
 }
 async function enter(accessToken,user) {
  token=accessToken;
- const rows=await api('/rest/v1/profiles?select=email,display_name,role&id=eq.'+encodeURIComponent(user.id));
+ const rows=await api('/rest/v1/profiles?select=email,display_name,role,must_change_password&id=eq.'+encodeURIComponent(user.id));
  const profile=rows[0];
- if(!profile||profile.role!=='admin') {token=null;throw new Error('La cuenta inició sesión, pero no tiene rol admin en public.profiles.');}
+ if(!profile||!['admin','jefe','subjefe'].includes(profile.role)||profile.must_change_password) {token=null;throw new Error('La cuenta no tiene acceso habilitado a la gestión de tareas.');}
  $('login').classList.add('hidden');$('panel').classList.remove('hidden');
  $('welcome').textContent='Sesión iniciada como '+(profile.display_name||profile.email||user.email||'administrador')+'.';
+ document.querySelector('#panel .pill').textContent={admin:'ADMIN',jefe:'JEFE',subjefe:'SUBJEFE'}[profile.role];
+ window.JzbTaskEditor.configure(api,()=>JzbDashboard.load(api),profile.role);
  await JzbDashboard.load(api);
 }
 $('loginForm').addEventListener('submit',async e=>{
@@ -95,7 +111,7 @@ $('resetForm').addEventListener('submit',async e=>{
 $('refreshTasks').addEventListener('click',()=>JzbDashboard.load(api));
 $('logout').addEventListener('click',async()=>{
  try{await api('/auth/v1/logout',{method:'POST'});}catch(e){}
- token=null;JzbDashboard.clear();sessionStorage.removeItem('jzb_session');$('password').value='';$('panel').classList.add('hidden');$('login').classList.remove('hidden');$('loginMessage').textContent='';
+ token=null;window.JzbTaskEditor.clear();JzbDashboard.clear();sessionStorage.removeItem('jzb_session');$('password').value='';$('panel').classList.add('hidden');$('login').classList.remove('hidden');$('loginMessage').textContent='';
 });
 (async()=>{
  const hash=new URLSearchParams(location.hash.slice(1));
