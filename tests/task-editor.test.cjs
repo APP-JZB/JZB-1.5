@@ -36,7 +36,9 @@ const submit=async()=>{await new Promise(resolve=>setImmediate(resolve));return 
  editor.configure(api,async()=>{},'jefe');editor.openCreate('Finanzas');fill();elements.taskFiles.files=[{name:'antecedente.pdf',size:120,type:'application/pdf'}];elements.taskFiles.onchange();uploadFails=true;await submit();assert.equal(tasks.size,2);assert.match(elements.taskEditorMessage.textContent,/La tarea está guardada/);assert.equal(elements.taskEditor.open,true);const countBefore=posts;
  uploadFails=false;await submit();assert.equal(posts,countBefore,'retry never creates a duplicate task');assert.equal(attachments.size,1);assert.equal(elements.taskEditor.open,false);
  editor.openEdit([...tasks.values()][1]);await new Promise(resolve=>setImmediate(resolve));
- for(const label of elements.taskAssigneeOptions.children)label.children[0].checked=true;
+ assert.equal(elements.taskAssigneeDropdown.open,false,'responsibles start collapsed');
+ for(const label of elements.taskAssigneeOptions.children){label.children[0].checked=true;label.children[0].onchange();}
+ assert.equal(elements.taskAssigneeSummary.textContent,'2 responsables seleccionados');
  await submit();assert.deepEqual(tasks.get([...tasks.keys()][1]).responsible_ids,['responsible-a','responsible-b'],'joint task saves two responsible profiles');
  editor.openEdit(tasks.get([...tasks.keys()][1]));await new Promise(resolve=>setImmediate(resolve));assert.equal(elements.taskAssigneeOptions.children.filter(l=>l.children[0].checked).length,2,'edit restores joint selection');editor.clear();
  const button=new Element('button');
