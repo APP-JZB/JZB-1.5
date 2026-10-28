@@ -23,7 +23,7 @@ window.JzbDashboard = (() => {
   if(window.JzbTaskEditor?.canManage()){const edit=node('button','Editar tarea','secondary task-edit');edit.type='button';edit.onclick=()=>window.JzbTaskEditor.openEdit(t);card.append(edit);}
   const complete=node('button',t.status==='finalizada'?'Reabrir tarea':'Marcar como completada','task-complete');
   complete.type='button';complete.disabled=!window.JzbTaskEditor?.canComplete?.();
-  if(complete.disabled)complete.setAttribute('title','Solo el Jefe y el Subjefe pueden cambiar el estado.');
+  if(complete.disabled)complete.setAttribute('title','Solo el Administrador, Jefe o Subjefe pueden cambiar el estado.');
   complete.onclick=()=>window.JzbTaskEditor?.setCompleted(t,complete);card.append(complete);
   if(t.completed_at)card.append(node('p','Completada el '+new Intl.DateTimeFormat('es-CL',{dateStyle:'short',timeStyle:'short',timeZone:'America/Santiago'}).format(new Date(t.completed_at)),'completion-note'));
   const progress=node('button','Comentarios y avances','secondary');progress.type='button';progress.onclick=()=>window.JzbTaskProgress?.open(t);card.append(progress);
