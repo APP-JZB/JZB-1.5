@@ -1,8 +1,8 @@
 window.JzbTaskProgress=(()=>{
- let api=null,profile={},active=null,requestId=0;
+ let api=null,profile={},active=null,requestId=0,assignedIds=[];
  const q=id=>document.getElementById(id),el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n;};
- function configure(request,p){api=request;profile=p;}
- function canWrite(t){return t.status!=='finalizada'&&(['jefe','subjefe'].includes(profile.role)||(profile.role==='user'&&profile.section===t.section));}
+ function configure(request,p){api=request;profile=p;assignedIds=[];if(p.id)request('/rest/v1/jzb_responsibles?select=id&active=eq.true&profile_id=eq.'+encodeURIComponent(p.id)).then(rows=>{if(profile===p)assignedIds=rows.map(r=>r.id);}).catch(()=>{});}
+ function canWrite(t){return t.status!=='finalizada'&&(['jefe','subjefe'].includes(profile.role)||(profile.role==='user'&&(profile.section===t.section||(t.responsible_ids||[]).some(id=>assignedIds.includes(id)))));}
  async function read(task,version){
   q('progressHistory').textContent='Cargando comentarios…';
   try{const rows=await api('/rest/v1/jzb_task_comments?select=actor_name,section,body,ready_for_review,created_at&task_id=eq.'+encodeURIComponent(task.id)+'&order=created_at.desc');if(version!==requestId)return;
@@ -18,6 +18,6 @@ window.JzbTaskProgress=(()=>{
   finally{if(version===requestId)q('progressSave').disabled=false;}
  };
  q('progressClose').onclick=()=>q('progressDialog').close();q('progressDialog').addEventListener('close',()=>{requestId++;active=null;});
- function clear(){requestId++;active=null;api=null;profile={};q('progressDialog').close();q('progressForm').reset();q('progressHistory').replaceChildren();}
+ function clear(){requestId++;active=null;api=null;profile={};assignedIds=[];q('progressDialog').close();q('progressForm').reset();q('progressHistory').replaceChildren();}
  return {configure,open,clear,canWrite};
 })();
