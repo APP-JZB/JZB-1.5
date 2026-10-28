@@ -22,7 +22,22 @@ window.JzbDashboard = (() => {
   const list=tasks.filter(t=>(!section||t.section===section)&&(!term||[t.title,t.description,t.section,t.assignee_text||''].join(' ').toLocaleLowerCase('es').includes(term)));
   q('taskList').replaceChildren();q('taskCount').textContent=list.length+' tareas';
   if(!list.length)q('taskList').append(node('p','No hay tareas que coincidan con la búsqueda.','muted'));
-  list.forEach(t=>q('taskList').append(taskCard(t)));
+  const groups=new Map();
+  for(const task of list){
+   const assignee=(task.assignee_text||'').trim();
+   const label=assignee||task.section+' · Responsable por confirmar';
+   const key=assignee?assignee.toLocaleUpperCase('es'):'section:'+task.section;
+   if(!groups.has(key))groups.set(key,{label,items:[]});
+   groups.get(key).items.push(task);
+  }
+  for(const group of groups.values()){
+   const section=node('section',undefined,'task-assignee-group');
+   const heading=node('div',undefined,'task-assignee-heading');
+   heading.append(node('h3',group.label),node('span',group.items.length+' tarea'+(group.items.length===1?'':'s'),'pill'));
+   section.append(heading);
+   for(const task of group.items)section.append(taskCard(task));
+   q('taskList').append(section);
+  }
  }
  function renderSummary(){
   q('totalTasks').textContent=tasks.length;
