@@ -64,7 +64,7 @@ window.JzbDashboard = (() => {
   q('calendarMonth').textContent=new Intl.DateTimeFormat('es-CL',{month:'long',year:'numeric'}).format(date);
   q('calendarDays').replaceChildren();
   const offset=(new Date(y,m,1).getDay()+6)%7;
-  const selectDay=key=>{selected=key;renderCalendar();};
+  const selectDay=key=>{selected=key;renderCalendar();if(!q('calendarTasksDialog').open)q('calendarTasksDialog').showModal();q('calendarTasksClose').focus();};
   for(let i=0;i<42;i++){
    const cellDate=new Date(y,m,1-offset+i),key=iso(cellDate.getFullYear(),cellDate.getMonth(),cellDate.getDate());
    const items=tasks.filter(t=>t.due_date===key).sort((a,b)=>Number(a.status==='finalizada')-Number(b.status==='finalizada')||a.title.localeCompare(b.title,'es'));
@@ -75,7 +75,7 @@ window.JzbDashboard = (() => {
    if(key===currentDay)cell.classList.add('is-today');
    if(key===selected)cell.classList.add('selected');
    const dayButton=node('button',String(cellDate.getDate()),'calendar-day-number');dayButton.type='button';
-   dayButton.setAttribute('aria-label','Ver tareas del '+fullDate);dayButton.setAttribute('aria-pressed',String(selected===key));
+   dayButton.setAttribute('data-date',key);dayButton.setAttribute('aria-label','Ver tareas del '+fullDate);dayButton.setAttribute('aria-pressed',String(selected===key));
    if(key===currentDay)dayButton.setAttribute('aria-current','date');
    dayButton.onclick=()=>selectDay(key);cell.append(dayButton);
    for(const task of items.slice(0,3)){
@@ -94,10 +94,11 @@ window.JzbDashboard = (() => {
   q('calendarDetail').replaceChildren();
   if(selected){
    const rows=tasks.filter(t=>t.due_date===selected);
-   q('calendarDetail').append(node('h3','Tareas del '+format(selected)));
+   q('calendarDialogTitle').textContent='Tareas del '+format(selected);
+   q('calendarDialogCount').textContent=rows.length+' tarea'+(rows.length===1?'':'s')+' con plazo en esta fecha';
    if(!rows.length)q('calendarDetail').append(node('p','Sin plazos confirmados para esta fecha.','muted'));
    rows.forEach(t=>q('calendarDetail').append(taskCard(t)));
-  }else q('calendarDetail').append(node('p','Selecciona una tarea o un día para consultar su detalle. Las tareas sin plazo permanecen en el listado de tareas cargadas.','muted'));
+  }else{q('calendarDialogTitle').textContent='Tareas del día';q('calendarDialogCount').textContent='';}
  }
  async function load(api){
   q('taskLoadMessage').textContent='Cargando tareas…';q('refreshTasks').disabled=true;
@@ -105,11 +106,13 @@ window.JzbDashboard = (() => {
   catch(e){tasks=[];renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='No fue posible cargar las tareas. Vuelve a iniciar sesión si la sesión venció o intenta actualizar.';}
   finally{q('refreshTasks').disabled=false;}
  }
- function clear(){tasks=[];selected=null;q('taskSearch').value='';q('taskSection').value='';renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='';}
+ function clear(){if(q('calendarTasksDialog').open)q('calendarTasksDialog').close();tasks=[];selected=null;q('taskSearch').value='';q('taskSection').value='';renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='';}
  for(const section of sections){const o=node('option',section);o.value=section;q('taskSection').append(o);}
  q('taskSection').onchange=renderList;q('taskSearch').oninput=renderList;
  q('calendarPrev').onclick=()=>{date=new Date(date.getFullYear(),date.getMonth()-1,1);selected=null;renderCalendar();};
  q('calendarNext').onclick=()=>{date=new Date(date.getFullYear(),date.getMonth()+1,1);selected=null;renderCalendar();};
  q('calendarToday').onclick=()=>{const parts=today().split('-').map(Number);date=new Date(parts[0],parts[1]-1,1);selected=today();renderCalendar();};
+ q('calendarTasksClose').onclick=()=>q('calendarTasksDialog').close();
+ q('calendarTasksDialog').addEventListener('close',()=>{if(selected)q('calendarDays').querySelector?.('[data-date="'+selected+'"]')?.focus();});
  return {load,clear};
 })();
