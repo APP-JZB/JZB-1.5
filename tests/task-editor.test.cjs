@@ -8,7 +8,8 @@ class Element{
 const html=fs.readFileSync(path.join(__dirname,'../web-admin/index.html'),'utf8'),ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(e=>e[1]);
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
 const fields=['taskTitle','taskDescription','taskAssignedSection','taskResponsible','taskNoDeadline','taskDueDate','taskFiles'];
-const context={window:{},document:{getElementById:id=>{assert.ok(elements[id],id);return elements[id];},createElement:t=>new Element(t),activeElement:null,body:new Element('body')},crypto:webcrypto,Intl,Date,URL,setTimeout,console};vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../web-admin/task-editor.js'),'utf8'),context);
+let staleMarkup=false;
+const context={window:{},document:{getElementById:id=>{if(staleMarkup&&['taskAssigneeSummary','taskAssigneeDropdown'].includes(id))return null;assert.ok(elements[id],id);return elements[id];},createElement:t=>new Element(t),activeElement:null,body:new Element('body')},crypto:webcrypto,Intl,Date,URL,setTimeout,console};vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../web-admin/task-editor.js'),'utf8'),context);
 const editor=context.window.JzbTaskEditor;
 let tasks=new Map(),attachments=new Map(),objects=new Map(),posts=0,patches=0,refreshes=0,uploadFails=false,conflict=false;
 async function api(route,options={}){
@@ -42,13 +43,14 @@ const submit=async()=>{await new Promise(resolve=>setImmediate(resolve));return 
  await submit();assert.deepEqual(tasks.get([...tasks.keys()][1]).responsible_ids,['responsible-a','responsible-b'],'joint task saves two responsible profiles');
  editor.openEdit(tasks.get([...tasks.keys()][1]));await new Promise(resolve=>setImmediate(resolve));assert.equal(elements.taskAssigneeOptions.children.filter(l=>l.children[0].checked).length,2,'edit restores joint selection');editor.clear();
  const button=new Element('button');
- editor.configure(api,async()=>{},'admin');assert.equal(editor.canComplete(),false);
- const editsBefore=patches;await editor.setCompleted(tasks.get(first.id),button);assert.equal(patches,editsBefore,'administrator cannot use completion action');assert.match(elements.panelMessage.textContent,/Solo el Jefe/);
+ editor.configure(api,async()=>{},'admin');assert.equal(editor.canComplete(),true);
+ const editsBefore=patches;await editor.setCompleted(tasks.get(first.id),button);assert.equal(patches,editsBefore+1,'administrator can complete tasks');assert.equal(tasks.get(first.id).status,'finalizada');await editor.setCompleted(tasks.get(first.id),button);
  editor.configure(api,async()=>{},'jefe');assert.equal(editor.canComplete(),true);
  await editor.setCompleted(tasks.get(first.id),button);assert.equal(tasks.get(first.id).status,'finalizada');
  await editor.setCompleted(tasks.get(first.id),button);assert.equal(tasks.get(first.id).status,'pendiente','leadership can undo accidental completion');
  editor.configure(api,async()=>{},'subjefe');assert.equal(editor.canComplete(),true);
  editor.openCreate('Personal');fill();elements.taskFiles.files=[{name:'demasiado.pdf',size:11*1024*1024,type:'application/pdf'}];await submit();assert.match(elements.taskEditorMessage.textContent,/supera 10 MB/);assert.equal(posts,countBefore);
  editor.clear();editor.configure(api,async()=>{},'user');editor.openCreate('Logística');assert.equal(elements.taskEditor.open,false);assert.equal(elements.createTask.hidden,true);
+ editor.clear();staleMarkup=true;editor.configure(api,async()=>{},'admin');editor.openCreate('Logística');assert.equal(elements.taskEditor.open,true,'admin form opens even if cached markup lacks dropdown controls');await new Promise(resolve=>setImmediate(resolve));editor.clear();
  console.log('PASS: section preset, required fields, creation, section/deadline editing, conflict, upload retry, file size and role gating');
 })().catch(e=>{console.error(e);process.exitCode=1;});
