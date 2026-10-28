@@ -49,6 +49,8 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  assert.equal(commented.children.at(-1).className,'task-inline-comments','comments follow task controls');
  const uncommented=elements.taskList.children.find(group=>group.children[0].textContent.startsWith('Personal')).children.find(child=>child.tag==='article');
  assert.equal(uncommented.children.some(child=>child.className==='task-inline-comments'),false,'no empty comments block');
+ await dashboard.load(async path=>path.includes('jzb_responsibles')?[{id:'person-a',rank:'TTE',full_name:'Responsable A',position:'Cargo A'},{id:'person-b',rank:'MAY',full_name:'Responsable B',position:'Cargo B'}]:path.includes('jzb_task_comments')?[]:rows.map(t=>({...t,responsible_ids:['person-a','person-b']})));
+ assert.match(elements.taskList.textContent,/Responsable A/);assert.match(elements.taskList.textContent,/Responsable B/,'both joint responsible names appear on cards');
  const assignedRows=rows.map(t=>({...t,assignee_text:'RESPONSABLE DE PRUEBA'}));
  await dashboard.load(async()=>assignedRows);
  assert.equal(elements.taskList.children.filter(group=>group.children.some(child=>child.tag==='article')).length,2,'different sections stay separate even with the same assignee');

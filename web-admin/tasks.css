@@ -16,3 +16,5 @@ html{scroll-behavior:smooth}.quick-access{display:grid;grid-template-columns:rep
 .progress-entry{padding:16px 0;border-bottom:1px solid #dbe3eb}.progress-entry p{white-space:pre-wrap;overflow-wrap:anywhere}#progressBody{width:100%;box-sizing:border-box}#progressHistory{margin-top:16px}#progressForm button{margin-top:16px}
 
 .task-inline-comments{margin-top:20px;padding:16px;background:#f5f8fb;border:1px solid #dbe3eb;border-radius:10px}.task-inline-comments h4{margin:0 0 8px}.task-inline-comments .progress-entry:last-child{border-bottom:0;padding-bottom:0}
+
+.responsible-option{display:flex;gap:10px;align-items:flex-start;padding:9px;border-bottom:1px solid #e3e9ee}.responsible-option input{width:auto;margin-top:3px}.task-responsibles{padding:12px;border-left:3px solid #315d83;background:#f4f7fa}.task-responsibles p{margin:5px 0}#taskAssigneeField{margin:18px 0;border:1px solid #dbe3eb;border-radius:8px}

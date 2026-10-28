@@ -12,6 +12,7 @@ const context={window:{},document:{getElementById:id=>{assert.ok(elements[id],id
 const editor=context.window.JzbTaskEditor;
 let tasks=new Map(),attachments=new Map(),objects=new Map(),posts=0,patches=0,refreshes=0,uploadFails=false,conflict=false;
 async function api(route,options={}){
+ if(route.startsWith('/rest/v1/jzb_responsibles?'))return [{id:'responsible-a',rank:'TTE',full_name:'Persona A',position:'Cargo A'},{id:'responsible-b',rank:'MAY',full_name:'Persona B',position:'Cargo B'}];
  const method=options.method||'GET',body=typeof options.body==='string'?JSON.parse(options.body):options.body;
  if(route==='/rest/v1/jzb_tasks'&&method==='POST'){posts++;if(tasks.has(body.id))throw new Error('duplicate');const row={...body,revision:1};tasks.set(row.id,row);return [{...row}];}
  if(route.startsWith('/rest/v1/jzb_tasks?')&&method==='PATCH'){patches++;if(conflict)return [];const id=route.match(/id=eq\.([^&]+)/)[1],row={...tasks.get(id),...body};row.revision++;tasks.set(id,row);return [{...row}];}
@@ -25,7 +26,7 @@ async function api(route,options={}){
  throw new Error('Unexpected API '+method+' '+route);
 }
 function fill(){elements.taskTitle.value='Nueva tarea';elements.taskDescription.value='Instrucciones de prueba';elements.taskResponsible.value='Responsable de prueba';elements.taskDueDate.value='2026-11-15';}
-const submit=()=>elements.taskForm.onsubmit({preventDefault(){}});
+const submit=async()=>{await new Promise(resolve=>setImmediate(resolve));return elements.taskForm.onsubmit({preventDefault(){}});};
 (async()=>{
  editor.configure(api,async()=>{refreshes++;},'admin');editor.openCreate('Logística');assert.equal(elements.taskAssignedSection.value,'Logística');assert.equal(elements.taskEditor.open,true);
  await submit();assert.match(elements.taskEditorMessage.textContent,/Completa/);assert.equal(posts,0,'incomplete forms do not create tasks');
@@ -34,6 +35,10 @@ const submit=()=>elements.taskForm.onsubmit({preventDefault(){}});
  editor.openEdit(tasks.get(first.id));elements.taskAssignedSection.value='Finanzas';conflict=true;await submit();assert.match(elements.taskEditorMessage.textContent,/Otra persona/);assert.equal(elements.taskEditor.open,true);conflict=false;editor.clear();
  editor.configure(api,async()=>{},'jefe');editor.openCreate('Finanzas');fill();elements.taskFiles.files=[{name:'antecedente.pdf',size:120,type:'application/pdf'}];elements.taskFiles.onchange();uploadFails=true;await submit();assert.equal(tasks.size,2);assert.match(elements.taskEditorMessage.textContent,/La tarea está guardada/);assert.equal(elements.taskEditor.open,true);const countBefore=posts;
  uploadFails=false;await submit();assert.equal(posts,countBefore,'retry never creates a duplicate task');assert.equal(attachments.size,1);assert.equal(elements.taskEditor.open,false);
+ editor.openEdit([...tasks.values()][1]);await new Promise(resolve=>setImmediate(resolve));
+ for(const label of elements.taskAssigneeOptions.children)label.children[0].checked=true;
+ await submit();assert.deepEqual(tasks.get([...tasks.keys()][1]).responsible_ids,['responsible-a','responsible-b'],'joint task saves two responsible profiles');
+ editor.openEdit(tasks.get([...tasks.keys()][1]));await new Promise(resolve=>setImmediate(resolve));assert.equal(elements.taskAssigneeOptions.children.filter(l=>l.children[0].checked).length,2,'edit restores joint selection');editor.clear();
  const button=new Element('button');
  editor.configure(api,async()=>{},'admin');assert.equal(editor.canComplete(),false);
  const editsBefore=patches;await editor.setCompleted(tasks.get(first.id),button);assert.equal(patches,editsBefore,'administrator cannot use completion action');assert.match(elements.panelMessage.textContent,/Solo el Jefe/);
