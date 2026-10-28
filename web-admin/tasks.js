@@ -2,9 +2,10 @@
 window.JzbDashboard = (() => {
  const q=id=>document.getElementById(id);
  const sections=['Asistencial','Coordinación Habitacional','Servicio Bandas','Planificación','Personal','Finanzas','Recreacional','Logística'];
- let tasks=[],date=new Date(),selected=null;
+ let tasks=[],date=null,selected=null;
  const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const initialDate=today().split('-').map(Number);date=new Date(initialDate[0],initialDate[1]-1,1);
  const iso=(y,m,d)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
  const format=s=>s?new Intl.DateTimeFormat('es-CL',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(s+'T12:00:00')):'Sin plazo';
  const state=t=>t.status==='finalizada'?'Finalizada':t.due_date&&t.due_date<today()?'Vencida':t.status==='en_desarrollo'?'En desarrollo':'Pendiente';
@@ -54,20 +55,44 @@ window.JzbDashboard = (() => {
    [section,rows.length,rows.filter(t=>t.status==='en_desarrollo').length,rows.filter(t=>t.status==='finalizada').length,rows.filter(t=>state(t)==='Vencida').length].forEach(v=>r.append(node('td',String(v))));q('sectionRows').append(r);}
  }
  function renderCalendar(){
-  const y=date.getFullYear(),m=date.getMonth();q('calendarMonth').textContent=new Intl.DateTimeFormat('es-CL',{month:'long',year:'numeric'}).format(date);
+  const y=date.getFullYear(),m=date.getMonth(),currentDay=today();
+  q('calendarMonth').textContent=new Intl.DateTimeFormat('es-CL',{month:'long',year:'numeric'}).format(date);
   q('calendarDays').replaceChildren();
-  for(let i=0;i<(new Date(y,m,1).getDay()+6)%7;i++)q('calendarDays').append(node('span'));
-  for(let d=1;d<=new Date(y,m+1,0).getDate();d++){
-   const key=iso(y,m,d),items=tasks.filter(t=>t.due_date===key),b=node('button',String(d),'calendar-day');b.type='button';
-   b.setAttribute('aria-label',`${d} de ${q('calendarMonth').textContent}, ${items.length} tareas`);
-   b.setAttribute('aria-pressed',String(selected===key));
-   if(items.length){b.classList.add('has-tasks');b.append(node('small',String(items.length)+' tarea'+(items.length===1?'':'s')));}
-   if(key===today())b.classList.add('is-today');if(selected===key)b.classList.add('selected');
-   b.onclick=()=>{selected=key;renderCalendar();};q('calendarDays').append(b);
+  const offset=(new Date(y,m,1).getDay()+6)%7;
+  const selectDay=key=>{selected=key;renderCalendar();};
+  for(let i=0;i<42;i++){
+   const cellDate=new Date(y,m,1-offset+i),key=iso(cellDate.getFullYear(),cellDate.getMonth(),cellDate.getDate());
+   const items=tasks.filter(t=>t.due_date===key).sort((a,b)=>Number(a.status==='finalizada')-Number(b.status==='finalizada')||a.title.localeCompare(b.title,'es'));
+   const cell=node('div',undefined,'calendar-day');
+   const fullDate=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric'}).format(cellDate);
+   cell.setAttribute('aria-label',fullDate+', '+items.length+' tareas');
+   if(cellDate.getMonth()!==m)cell.classList.add('other-month');
+   if(key===currentDay)cell.classList.add('is-today');
+   if(key===selected)cell.classList.add('selected');
+   const dayButton=node('button',String(cellDate.getDate()),'calendar-day-number');dayButton.type='button';
+   dayButton.setAttribute('aria-label','Ver tareas del '+fullDate);dayButton.setAttribute('aria-pressed',String(selected===key));
+   if(key===currentDay)dayButton.setAttribute('aria-current','date');
+   dayButton.onclick=()=>selectDay(key);cell.append(dayButton);
+   for(const task of items.slice(0,3)){
+    const complete=task.status==='finalizada',overdue=!complete&&key<currentDay;
+    const chip=node('button',undefined,'calendar-task '+(complete?'is-complete':overdue?'is-overdue':'is-pending'));chip.type='button';
+    chip.setAttribute('title',task.section+' · '+task.title+' · '+state(task));
+    chip.setAttribute('aria-label',task.title+', '+task.section+', '+state(task)+', '+fullDate);
+    const icon=node('span',complete?'✓':'○','calendar-task-icon');icon.setAttribute('aria-hidden','true');
+    chip.append(icon,node('span',task.title,'calendar-task-title'));
+    chip.onclick=()=>selectDay(key);cell.append(chip);
+   }
+   if(items.length>3){const more=node('button','+'+(items.length-3)+' más','calendar-more');more.type='button';more.setAttribute('aria-label','Ver las '+items.length+' tareas del '+fullDate);more.onclick=()=>selectDay(key);cell.append(more);}
+   cell.onclick=e=>{if(!e||e.target===cell)selectDay(key);};
+   q('calendarDays').append(cell);
   }
   q('calendarDetail').replaceChildren();
-  if(selected){const rows=tasks.filter(t=>t.due_date===selected);q('calendarDetail').append(node('h3',format(selected)));if(!rows.length)q('calendarDetail').append(node('p','Sin plazos confirmados para esta fecha.','muted'));rows.forEach(t=>q('calendarDetail').append(taskCard(t)));}
-  else q('calendarDetail').append(node('p','Selecciona un día para consultar sus tareas. Solo se muestran vencimientos con fecha completa confirmada.','muted'));
+  if(selected){
+   const rows=tasks.filter(t=>t.due_date===selected);
+   q('calendarDetail').append(node('h3','Tareas del '+format(selected)));
+   if(!rows.length)q('calendarDetail').append(node('p','Sin plazos confirmados para esta fecha.','muted'));
+   rows.forEach(t=>q('calendarDetail').append(taskCard(t)));
+  }else q('calendarDetail').append(node('p','Selecciona una tarea o un día para consultar su detalle. Las tareas sin plazo permanecen en el listado de tareas cargadas.','muted'));
  }
  async function load(api){
   q('taskLoadMessage').textContent='Cargando tareas…';q('refreshTasks').disabled=true;
@@ -80,5 +105,6 @@ window.JzbDashboard = (() => {
  q('taskSection').onchange=renderList;q('taskSearch').oninput=renderList;
  q('calendarPrev').onclick=()=>{date=new Date(date.getFullYear(),date.getMonth()-1,1);selected=null;renderCalendar();};
  q('calendarNext').onclick=()=>{date=new Date(date.getFullYear(),date.getMonth()+1,1);selected=null;renderCalendar();};
+ q('calendarToday').onclick=()=>{const parts=today().split('-').map(Number);date=new Date(parts[0],parts[1]-1,1);selected=today();renderCalendar();};
  return {load,clear};
 })();
