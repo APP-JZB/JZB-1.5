@@ -82,12 +82,18 @@ window.JzbDashboard = (() => {
   for(const section of sections){const rows=tasks.filter(t=>t.section===section),r=node('tr');
    [section,rows.length,rows.filter(t=>t.status==='en_desarrollo').length,rows.filter(t=>t.status==='finalizada').length,rows.filter(t=>state(t)==='Vencida').length].forEach(v=>r.append(node('td',String(v))));q('sectionRows').append(r);}
  }
+ function weekRange(start,end){
+  const month=d=>new Intl.DateTimeFormat('es-CL',{month:'long'}).format(d),last=String(end.getDate()).padStart(2,'0');
+  if(start.getFullYear()!==end.getFullYear())return start.getDate()+' '+month(start)+' '+start.getFullYear()+' al '+last+' '+month(end)+' '+end.getFullYear();
+  if(start.getMonth()===end.getMonth())return start.getDate()+' al '+end.getDate()+' '+month(end)+' '+end.getFullYear();
+  return start.getDate()+' '+month(start)+' al '+last+' '+month(end)+' '+end.getFullYear();
+ }
  function renderCalendar(){
   renderStatsTasks();
   const y=date.getFullYear(),m=date.getMonth(),currentDay=today();
   const weekStart=new Date(y,m,date.getDate()-(date.getDay()+6)%7),weekEnd=new Date(weekStart.getFullYear(),weekStart.getMonth(),weekStart.getDate()+6);
   const fullFormat=d=>new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric'}).format(d);
-  q('calendarMonth').textContent=calendarView==='day'?fullFormat(date):calendarView==='week'?fullFormat(weekStart)+' — '+fullFormat(weekEnd):new Intl.DateTimeFormat('es-CL',{month:'long',year:'numeric'}).format(date);
+  q('calendarMonth').textContent=calendarView==='day'?fullFormat(date):calendarView==='week'?weekRange(weekStart,weekEnd):new Intl.DateTimeFormat('es-CL',{month:'long',year:'numeric'}).format(date);
   q('calendarDays').setAttribute('data-view',calendarView);q('calendarWeek').hidden=calendarView==='day';
   q('calendarView').value=calendarView;
   q('calendarPrev').setAttribute('aria-label',calendarView==='month'?'Mes anterior':calendarView==='week'?'Semana anterior':'Día anterior');
