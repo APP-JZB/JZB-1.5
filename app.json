@@ -2,7 +2,7 @@
   "expo": {
     "name": "JZB",
     "slug": "jzb",
-    "version": "1.32.10",
+    "version": "1.33.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,8 @@
         "SCHEDULE_EXACT_ALARM",
         "USE_EXACT_ALARM",
         "VIBRATE"
-      ]
+      ],
+      "versionCode": 13300
     },
     "web": {
       "favicon": "./assets/favicon.png",
