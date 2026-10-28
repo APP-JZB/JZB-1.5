@@ -2,15 +2,18 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');const vm=require('node:vm');const path=require('node:path');
 class FixedDate extends Date{constructor(...args){super(...(args.length?args:['2026-10-28T12:00:00Z']));}}
 class Element {
- constructor(tag='div'){this.tag=tag;this.children=[];this.value='';this.attrs={};this._text='';this.classList={add:(...names)=>{this.className=[this.className||'',...names].join(' ');}};}
+ constructor(tag='div'){this.tag=tag;this.children=[];this.value='';this.attrs={};this.open=false;this._text='';this.classList={add:(...names)=>{this.className=[this.className||'',...names].join(' ');}};}
  set textContent(v){this._text=String(v);this.children=[];}
  get textContent(){return this._text+this.children.map(x=>x.textContent).join('');}
  append(...nodes){this.children.push(...nodes);}
  replaceChildren(...nodes){this._text='';this.children=nodes;}
  setAttribute(k,v){this.attrs[k]=v;}
+ showModal(){this.open=true;}close(){this.open=false;}focus(){}addEventListener(){}
 }
 const html=fs.readFileSync(path.join(__dirname,'../web-admin/index.html'),'utf8');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);assert.equal(new Set(ids).size,ids.length,'unique element IDs');
+for(const target of ['consolidadoTareas','calendarioTareas','tareasCargadas'])assert.ok(html.includes('href="#'+target+'"')&&ids.includes(target),'shortcut targets exist');
+assert.ok(html.indexOf('id="calendarDetail"')>html.indexOf('id="calendarTasksDialog"'),'task detail is in the popup');
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
 let openedSection=null,editedTask=null;
 const context={window:{JzbTaskEditor:{canManage:()=>true,openCreate:section=>{openedSection=section;},openEdit:task=>{editedTask=task;}}},document:{getElementById:id=>{assert.ok(elements[id],`Missing element ${id}`);return elements[id];},createElement:t=>new Element(t)},Date:FixedDate,Intl,console};
@@ -28,11 +31,11 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  const busyDay=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('6 de octubre de 2026'));
  assert.equal(busyDay.children.filter(e=>e.className?.startsWith('calendar-task ')).length,3,'only first three chips in the cell');
  assert.match(busyDay.children[1].className,/is-overdue/);
- const more=busyDay.children.find(e=>e.className==='calendar-more');assert.equal(more.textContent,'+2 más');more.onclick();
+ const more=busyDay.children.find(e=>e.className==='calendar-more');assert.equal(more.textContent,'+2 más');more.onclick();assert.equal(elements.calendarTasksDialog.open,true,'calendar opens task popup');
  assert.match(elements.calendarDetail.textContent,/Tarea mensual 4/,'more button reveals all tasks');
  const completeDay=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('7 de octubre de 2026'));
  assert.match(completeDay.children[1].className,/is-complete/);
- elements.calendarNext.onclick();elements.calendarToday.onclick();assert.match(elements.calendarMonth.textContent,/octubre de 2026/,'Today restores the current month');assert.match(elements.calendarDetail.textContent,/28 oct/);
+ elements.calendarTasksClose.onclick();assert.equal(elements.calendarTasksDialog.open,false);elements.calendarNext.onclick();elements.calendarToday.onclick();assert.match(elements.calendarMonth.textContent,/octubre de 2026/,'Today restores the current month');assert.match(elements.calendarDialogTitle.textContent,/28 oct/);
  await dashboard.load(async()=>rows);
  assert.equal(elements.totalTasks.textContent,'2');assert.equal(elements.unconfirmedTasks.textContent,'1');assert.equal(elements.reviewTasks.textContent,'1');
  assert.equal(elements.taskList.children.length,8,'every section has an entry point, including empty sections');
@@ -52,7 +55,7 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  elements.taskSection.value='Logística';elements.taskSection.onchange();assert.equal(elements.taskList.children.length,1);
  elements.taskSearch.value='no existe';elements.taskSearch.oninput();assert.match(elements.taskList.textContent,/No hay tareas/);
  elements.calendarNext.onclick();const day=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('12 de noviembre de 2026'));assert.ok(day);day.onclick();assert.match(elements.calendarDetail.textContent,/Tarea de prueba/,'calendar ignores section filter');
- dashboard.clear();assert.equal(elements.totalTasks.textContent,'0');assert.doesNotMatch(elements.taskList.textContent,/<img/,'logout clears loaded data');
+ dashboard.clear();assert.equal(elements.totalTasks.textContent,'0');assert.equal(elements.calendarTasksDialog.open,false,'logout closes task popup');assert.doesNotMatch(elements.taskList.textContent,/<img/,'logout clears loaded data');
  await dashboard.load(async()=>{throw new Error('expired');});assert.match(elements.taskLoadMessage.textContent,/No fue posible/);assert.equal(elements.totalTasks.textContent,'0');
  console.log('PASS: counts, filters, calendar, safe text, logout and error state');
 })().catch(e=>{console.error(e);process.exitCode=1;});
