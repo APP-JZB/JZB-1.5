@@ -3,9 +3,10 @@ const cors={'Access-Control-Allow-Origin':'https://app-jzb.github.io','Access-Co
 const reply=(status:number,data:unknown)=>new Response(JSON.stringify(data),{status,headers:cors});
 const hash=async(s:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))).map(x=>x.toString(16).padStart(2,'0')).join('');
 const eq=(s:string)=>encodeURIComponent(s);
+const normalizeLogin=(value:string)=>value.normalize('NFC').trim().replace(/\s+/gu,' ').toLowerCase();
 async function request(path:string,method='GET',body?:unknown,key=service,bearer=key){const r=await fetch(base+path,{method,headers:{apikey:key,Authorization:'Bearer '+bearer,'Content-Type':'application/json',Prefer:'return=representation'},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json().catch(()=>null);if(!r.ok)throw new Error('No fue posible completar la operación. Revisa los datos y vuelve a intentar.');return data;}
 const table=(name:string,query='')=>'/rest/v1/'+name+query;
-const phone=(v:string)=>{let p=v.replace(/[^0-9]/g,'');if(p.length===11&&p.startsWith('56'))p=p.slice(2);return /^9[0-9]{8}$/.test(p)?p:null;};
+const phone=(v:string)=>{if(!/^[+0-9 ()-]+$/.test(v))return null;let p=v.replace(/[^0-9]/g,'');if(p.length===11&&p.startsWith('56'))p=p.slice(2);return /^9[0-9]{8}$/.test(p)?p:null;};
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return reply(200,{});if(req.method!=='POST')return reply(405,{});
  let lockedId:string|null=null;
@@ -26,7 +27,7 @@ Deno.serve(async req=>{
    return reply(200,{created:true,id,role:'user',section:entry.section});
   }
   if(body.action==='login'){
-   const identifier=String(body.identifier||'').trim().toLowerCase(),password=String(body.password||'');if(!identifier||identifier.length>254||password.length>1024)return reply(401,{message:'Usuario o contraseña incorrectos.'});
+   const identifier=normalizeLogin(String(body.identifier||'')),password=String(body.password||'');if(!identifier||identifier.length>254||password.length>1024)return reply(401,{message:'Usuario o contraseña incorrectos.'});
    const p=phone(identifier),key=await hash('login:'+(p||identifier));
    if(!await request('/rest/v1/rpc/jzb_access_rate_limit','POST',{attempt_key:key}))return reply(429,{message:'Demasiados intentos. Espera 15 minutos antes de volver a ingresar.'});
    let email=identifier;
@@ -38,18 +39,19 @@ Deno.serve(async req=>{
   const accounts=await request(table('jzb_access_accounts','?id=eq.'+user.id));const account=accounts[0];
   if(body.action==='setup'){
    if(!account||account.setup_complete)return reply(403,{message:'La cuenta no requiere activación.'});
-   const username=String(body.username||'').trim().toLowerCase(),email=String(body.email||'').trim().toLowerCase(),password=String(body.password||'');
-   if(!/^[a-z][a-z0-9_.-]{2,29}$/.test(username))return reply(400,{message:'Usuario: entre 3 y 30 caracteres; comienza con una letra y usa letras sin tildes, números, punto, guion o guion bajo.'});
+   const usernameDisplay=String(body.username||'').normalize('NFC').trim().replace(/\s+/gu,' '),username=normalizeLogin(usernameDisplay),email=String(body.email||'').trim().toLowerCase(),password=String(body.password||'');
+   if(!/^[\p{L}][\p{L}\p{N} ._-]{2,79}$/u.test(username))return reply(400,{message:'Usuario: entre 3 y 80 caracteres; permite letras, tildes, ñ, espacios, números, punto, guion o guion bajo.'});
    if(email.length>254||!/^\S+@\S+\.\S+$/.test(email))return reply(400,{message:'Registra un correo válido.'});
    if(password.length<8||password.length>1024||password===account.phone.slice(-6))return reply(400,{message:'Elige una contraseña nueva de al menos 8 caracteres, distinta de la clave inicial.'});
    const claimed=await request(table('jzb_access_accounts','?id=eq.'+user.id+'&setup_complete=eq.false&or=(setup_lock.is.null,setup_lock.lt.'+eq(new Date(Date.now()-120000).toISOString())+')'),'PATCH',{setup_lock:new Date().toISOString()});if(!claimed.length)return reply(409,{message:'La activación se está guardando. Espera un momento.'});lockedId=user.id;
    const owners=await request(table('jzb_access_accounts','?username=eq.'+eq(username)));if(owners.some((a:{id:string})=>a.id!==user.id))throw new Error('Ese nombre de usuario ya está utilizado. Elige otro.');
-   await request(table('jzb_access_accounts','?id=eq.'+user.id),'PATCH',{username,contact_email:email});
+   await request(table('jzb_access_accounts','?id=eq.'+user.id),'PATCH',{username,username_display:usernameDisplay,contact_email:email});
    await request('/auth/v1/admin/users/'+user.id,'PUT',{password});
    await request(table('profiles','?id=eq.'+user.id),'PATCH',{email,must_change_password:false});
    await request(table('jzb_access_accounts','?id=eq.'+user.id),'PATCH',{setup_complete:true,setup_lock:null});lockedId=null;
-   return reply(200,{complete:true,username});
+   return reply(200,{complete:true,username:usernameDisplay});
   }
   return reply(400,{message:'Operación no válida.'});
  }catch(e){if(lockedId)try{await request(table('jzb_access_accounts','?id=eq.'+lockedId),'PATCH',{setup_lock:null});}catch{}return reply(400,{message:e instanceof Error?e.message:'No fue posible completar la operación.'});}
 });
+
