@@ -40,7 +40,7 @@ Deno.serve(async req=>{
   if(body.action==='setup'){
    if(!account||account.setup_complete)return reply(403,{message:'La cuenta no requiere activación.'});
    const usernameDisplay=String(body.username||'').normalize('NFC').trim().replace(/\s+/gu,' '),username=normalizeLogin(usernameDisplay),email=String(body.email||'').trim().toLowerCase(),password=String(body.password||'');
-   if(!/^[\p{L}][\p{L}\p{N} ._-]{2,79}$/u.test(username))return reply(400,{message:'Usuario: entre 3 y 80 caracteres; permite letras, tildes, ñ, espacios, números, punto, guion o guion bajo.'});
+   if(!/^[\p{L}][\p{L}\p{N}._-]{2,29}$/u.test(username))return reply(400,{message:'Usuario: entre 3 y 30 caracteres, sin espacios; permite tildes, ñ, números, punto, guion o guion bajo.'});
    if(email.length>254||!/^\S+@\S+\.\S+$/.test(email))return reply(400,{message:'Registra un correo válido.'});
    if(password.length<8||password.length>1024||password===account.phone.slice(-6))return reply(400,{message:'Elige una contraseña nueva de al menos 8 caracteres, distinta de la clave inicial.'});
    const claimed=await request(table('jzb_access_accounts','?id=eq.'+user.id+'&setup_complete=eq.false&or=(setup_lock.is.null,setup_lock.lt.'+eq(new Date(Date.now()-120000).toISOString())+')'),'PATCH',{setup_lock:new Date().toISOString()});if(!claimed.length)return reply(409,{message:'La activación se está guardando. Espera un momento.'});lockedId=user.id;
