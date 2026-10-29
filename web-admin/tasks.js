@@ -2,7 +2,7 @@
 window.JzbDashboard = (() => {
  const q=id=>document.getElementById(id);
  const sections=['Jefe Jefatura Zonas de Bienestar','Sub Jefe Jefatura Zonas de Bienestar','Asistencial','Coordinación Habitacional','Servicio Bandas','Planificación','Personal','Finanzas','Recreacional','Logística','Seguridad'];
- let tasks=[],date=null,selected=null,calendarView="month",statsKey=null,progressByTask=new Map(),commentsByTask=new Map(),responsibles=new Map();
+ let tasks=[],date=null,selected=null,calendarView="month",statsKey=null,currentProfile=null,progressByTask=new Map(),commentsByTask=new Map(),responsibles=new Map();
  const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const initialDate=today().split('-').map(Number);date=new Date(initialDate[0],initialDate[1]-1,initialDate[2]);
@@ -40,7 +40,16 @@ window.JzbDashboard = (() => {
   }
   return card;
  }
- const statViews={all:{button:'statAll',label:'Total de tareas',match:()=>true},open:{button:'statOpen',label:'Pendientes o en desarrollo',match:t=>t.status!=='finalizada'},review:{button:'statReview',label:'Antecedentes por revisar',match:t=>t.needs_review},noDeadline:{button:'statNoDeadline',label:'Sin plazo',match:t=>!t.due_date}};
+ function isMine(task){
+  if(!currentProfile?.id)return false;
+  const people=[...responsibles.values()].filter(p=>p.profile_id===currentProfile.id&&p.active!==false);
+  const assigned=task.responsible_ids||[];
+  if(assigned.length)return people.some(p=>assigned.includes(p.id));
+  const destination=currentProfile.role==='jefe'?'Jefe Jefatura Zonas de Bienestar':currentProfile.role==='subjefe'?'Sub Jefe Jefatura Zonas de Bienestar':currentProfile.section;
+  return Boolean(destination&&task.section===destination);
+ }
+ function configure(profile){currentProfile=profile;q('statMine').hidden=!profile?.id||!['user','jefe','subjefe'].includes(profile.role);}
+ const statViews={mine:{button:'statMine',label:'Mis tareas asignadas',match:isMine},all:{button:'statAll',label:'Total de tareas',match:()=>true},open:{button:'statOpen',label:'Pendientes o en desarrollo',match:t=>t.status!=='finalizada'},review:{button:'statReview',label:'Antecedentes por revisar',match:t=>t.needs_review},noDeadline:{button:'statNoDeadline',label:'Sin plazo',match:t=>!t.due_date}};
  function renderStatsTasks(){
   if(!statsKey)return;const view=statViews[statsKey],rows=tasks.filter(view.match);
   q('statsDialogTitle').textContent=view.label;q('statsDialogCount').textContent=rows.length+' tarea'+(rows.length===1?'':'s');q('statsTasksList').replaceChildren();
@@ -74,6 +83,7 @@ window.JzbDashboard = (() => {
   }
  }
  function renderSummary(){
+  q('myTasks').textContent=tasks.filter(isMine).length;
   q('totalTasks').textContent=tasks.length;
   q('openTasks').textContent=tasks.filter(t=>t.status!=='finalizada').length;
   q('reviewTasks').textContent=tasks.filter(t=>t.needs_review).length;
@@ -140,11 +150,11 @@ window.JzbDashboard = (() => {
  }
  async function load(api){
   q('taskLoadMessage').textContent='Cargando tareas…';q('refreshTasks').disabled=true;
-  try{const rows=await api('/rest/v1/jzb_tasks?select=id,section,title,description,assignee_text,responsible_ids,status,due_date,deadline_text,needs_review,review_notes,revision,completed_at&order=section.asc,created_at.asc&limit=1000');if(!Array.isArray(rows))throw new Error('Respuesta no válida');tasks=rows;const directory=await api('/rest/v1/jzb_responsibles?select=id,rank,full_name,position&order=full_name.asc');responsibles=new Map(directory.map(p=>[p.id,p]));progressByTask=new Map();commentsByTask=new Map();try{let offset=0;while(true){const advances=await api('/rest/v1/jzb_task_comments?select=id,task_id,actor_name,section,body,ready_for_review,created_at&order=created_at.desc,id.desc&limit=1000&offset='+offset);for(const a of advances){if(!a.task_id)continue;if(!progressByTask.has(a.task_id))progressByTask.set(a.task_id,a);if(!commentsByTask.has(a.task_id))commentsByTask.set(a.task_id,[]);commentsByTask.get(a.task_id).push(a);}if(advances.length<1000)break;offset+=1000;}}catch(e){}renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent=tasks.length?'Los registros señalados requieren validar sus antecedentes. Puedes crear tareas y consultar sus documentos.':'Todavía no hay tareas cargadas.';}
+  try{const rows=await api('/rest/v1/jzb_tasks?select=id,section,title,description,assignee_text,responsible_ids,status,due_date,deadline_text,needs_review,review_notes,revision,completed_at&order=section.asc,created_at.asc&limit=1000');if(!Array.isArray(rows))throw new Error('Respuesta no válida');tasks=rows;const directory=await api('/rest/v1/jzb_responsibles?select=id,rank,full_name,position,profile_id,active&order=full_name.asc');responsibles=new Map(directory.map(p=>[p.id,p]));progressByTask=new Map();commentsByTask=new Map();try{let offset=0;while(true){const advances=await api('/rest/v1/jzb_task_comments?select=id,task_id,actor_name,section,body,ready_for_review,created_at&order=created_at.desc,id.desc&limit=1000&offset='+offset);for(const a of advances){if(!a.task_id)continue;if(!progressByTask.has(a.task_id))progressByTask.set(a.task_id,a);if(!commentsByTask.has(a.task_id))commentsByTask.set(a.task_id,[]);commentsByTask.get(a.task_id).push(a);}if(advances.length<1000)break;offset+=1000;}}catch(e){}renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent=tasks.length?'Los registros señalados requieren validar sus antecedentes. Puedes crear tareas y consultar sus documentos.':'Todavía no hay tareas cargadas.';}
   catch(e){tasks=[];responsibles.clear();progressByTask.clear();commentsByTask.clear();renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='No fue posible cargar las tareas. Vuelve a iniciar sesión si la sesión venció o intenta actualizar.';}
   finally{q('refreshTasks').disabled=false;}
  }
- function clear(){if(q('statsTasksDialog').open)q('statsTasksDialog').close();statsKey=null;q('statsTasksList').replaceChildren();if(q('calendarTasksDialog').open)q('calendarTasksDialog').close();tasks=[];responsibles.clear();progressByTask.clear();commentsByTask.clear();selected=null;q('taskSearch').value='';q('taskSection').value='';renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='';}
+ function clear(){currentProfile=null;q('statMine').hidden=true;if(q('statsTasksDialog').open)q('statsTasksDialog').close();statsKey=null;q('statsTasksList').replaceChildren();if(q('calendarTasksDialog').open)q('calendarTasksDialog').close();tasks=[];responsibles.clear();progressByTask.clear();commentsByTask.clear();selected=null;q('taskSearch').value='';q('taskSection').value='';renderSummary();renderList();renderCalendar();q('taskLoadMessage').textContent='';}
  for(const section of sections){const o=node('option',section);o.value=section;q('taskSection').append(o);}
  q('taskSection').onchange=renderList;q('taskSearch').oninput=renderList;
  function moveCalendar(direction){date=calendarView==='month'?new Date(date.getFullYear(),date.getMonth()+direction,1):new Date(date.getFullYear(),date.getMonth(),date.getDate()+direction*(calendarView==='week'?7:1));selected=null;renderCalendar();}
@@ -156,5 +166,5 @@ window.JzbDashboard = (() => {
  q('statsTasksDialog').addEventListener('close',()=>{if(statsKey)q(statViews[statsKey].button).focus();statsKey=null;});
  q('calendarTasksClose').onclick=()=>q('calendarTasksDialog').close();
  q('calendarTasksDialog').addEventListener('close',()=>{if(selected)q('calendarDays').querySelector?.('[data-date="'+selected+'"]')?.focus();});
- return {load,clear};
+ return {load,clear,configure};
 })();

@@ -66,6 +66,11 @@ const rows=[{id:'a',section:'Logística',title:'<img src=x onerror=alert(1)>',de
  elements.taskSection.value='Logística';elements.taskSection.onchange();assert.equal(elements.taskList.children.length,1);
  elements.taskSearch.value='no existe';elements.taskSearch.oninput();assert.match(elements.taskList.textContent,/No hay tareas/);
  elements.calendarNext.onclick();const day=elements.calendarDays.children.find(e=>e.attrs['aria-label']?.startsWith('12 de noviembre de 2026'));assert.ok(day);day.onclick();assert.match(elements.calendarDetail.textContent,/Tarea de prueba/,'calendar ignores section filter');
+ dashboard.configure({id:'profile-me',role:'user',section:'Logística'});
+ const personalRows=[{...rows[0],id:'mine-section',title:'Encargo a Logística',responsible_ids:[]},{...rows[0],id:'mine-joint',title:'Trabajo conjunto asignado',section:'Finanzas',responsible_ids:['dir-me','dir-other']},{...rows[0],id:'not-mine',title:'Asignación de otra persona',responsible_ids:['dir-other']}];
+ await dashboard.load(async path=>path.includes('jzb_responsibles')?[{id:'dir-me',profile_id:'profile-me',rank:'TTE',full_name:'Prueba',active:true}]:path.includes('jzb_task_comments')?[]:personalRows);
+ assert.equal(elements.statMine.hidden,false);assert.equal(elements.myTasks.textContent,'2');elements.statMine.onclick();assert.match(elements.statsTasksList.textContent,/Trabajo conjunto asignado/);assert.match(elements.statsTasksList.textContent,/Encargo a Logística/);assert.doesNotMatch(elements.statsTasksList.textContent,/Asignación de otra persona/);elements.statsTasksClose.onclick();
+ dashboard.configure({id:'admin',role:'admin'});assert.equal(elements.statMine.hidden,true);await dashboard.load(async()=>assignedRows);
  elements.calendarView.value='week';elements.calendarView.onchange();assert.equal(elements.calendarDays.children.length,7,'weekly view shows seven days');
  elements.calendarToday.onclick();assert.equal(elements.calendarMonth.textContent,'26 octubre al 01 noviembre 2026','week crosses month boundary');
  elements.calendarNext.onclick();assert.equal(elements.calendarMonth.textContent,'2 al 8 noviembre 2026','same month uses short range');
